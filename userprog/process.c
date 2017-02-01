@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "lib/string.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -38,13 +39,40 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+//debug method - show arguments
+  char *token, *save_ptr;
+//max 10 for now
+  char *argarray[10];
+  int argcount = 0;
+
+
+  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)){
+
+    printf ("'%s'\n", token);
+    argarray[argcount] = token;
+    argcount++;
+
+    if (argcount == 11){
+      break;
+    }
+
+  }
+  printf("Number of arguments: %d\n", argcount);
+
+  for (int i = 0; i < argcount; i++){
+    printf("%s", argarray[i]);
+  }
+  printf("\n");
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  printf("Thread created\n");
 
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
-
-
+    printf("TID Error\n");
+  }
   return tid;
 }
 
@@ -122,7 +150,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-    printf ("%s: exit(%d)\n", cur->name);
+    printf ("%s: exit(%d)\n", cur->name, cur->tid);
 }
 
 /* Sets up the CPU for running user code in the current
