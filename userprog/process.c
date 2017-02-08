@@ -22,51 +22,33 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-tid_t
-process_execute (const char *file_name)
-{
-  char *fn_copy;
-  tid_t tid;
+tid_t process_execute (const char *file_name){
+    char *fn_copy, *fn_pname_copy, *save_ptr;
+    tid_t tid;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
-
-//debug method - show arguments
-  char *token, *save_ptr;
-//max 10 for now
-  char *argarray[10];
-  int argcount = 0;
-
-  for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
-       token = strtok_r (NULL, " ", &save_ptr)){
-
-    printf ("'%s'\n", token);
-    argarray[argcount] = token;
-    argcount++;
-
-    if (argcount == 11){
-      break;
-    }
-
+  if (fn_copy == NULL){
+      return TID_ERROR;
   }
-  printf("Number of arguments: %d\n", argcount);
 
-  for (int i = 0; i < argcount; i++){
-    printf("%s", argarray[i]);
-  }
-  printf("\n");
+    strlcpy (fn_copy, file_name, PGSIZE);
+    fn_pname_copy = palloc_get_page (0);
+    strlcpy (fn_pname_copy, file_name, PGSIZE);
 
+    char* pname = strtok_r (fn_pname_copy, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (pname, PRI_DEFAULT, start_process, fn_copy);
+
+    //-------------------------------------------------------------------
   printf("Thread created\n");
 
   if (tid == TID_ERROR){
@@ -252,21 +234,32 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
-  /* Allocate and activate page directory. */
+    char *fn_pname_copy, *save_ptr;
+    char* args[10];
+
+
+
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL)
     goto done;
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
 
-  if (file == NULL)
+    // CHANGES --------------------------------------------
+    fn_pname_copy = palloc_get_page(0);
+    strlcpy (fn_pname_copy, file_name, PGSIZE);
+
+    char* pname = strtok_r (fn_pname_copy, " ", &save_ptr);
+
+    file = filesys_open (pname);
+    //-----------------------------------------------------
+
+    if (file == NULL)
     {
 	printf ("load: %s: open failed\n", file_name);
       goto done;
     }
-
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -279,7 +272,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done;
     }
-
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++)
@@ -338,10 +330,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
           break;
         }
     }
-
   /* Set up stack. */
-  if (!setup_stack (esp))
-    goto done;
+  if (!setup_stack (esp)) {
+      goto done;
+  }
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -353,7 +345,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_close (file);
   return success;
 }
-
+
 /* load() helpers. */
 
 static bool install_page (void *upage, void *kpage, bool writable);
@@ -475,7 +467,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
-        *esp = PHYS_BASE -12;
+        *esp = PHYS_BASE - 12;
       } else
         palloc_free_page (kpage);
     }
@@ -502,4 +494,39 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
-//--------------------------------------------------------------------
+
+//-------------------------------------------------------------------- OUR CODE
+
+
+
+/*
+void extract_program_args (const char *file_name, char **program_args[10]){
+
+
+    char **temp = &file_name;
+
+    printf("function start extract_program_args, file_name = %s\n", *temp);
+    char *token, *save_ptr;
+//max 10 for now
+    char *argarray[10];
+    int argcount = 0;
+
+    token = strtok_r (file_name, " ", &save_ptr);
+
+    for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+         token = strtok_r (NULL, " ", &save_ptr)){
+
+        printf ("'%s'\n", token);
+        argarray[argcount] = token;
+        argcount++;
+
+        if (argcount == 11){
+            printf("Too many arguments, 10 max\n");
+            break;
+        }
+
+    }
+
+
+}
+ */
