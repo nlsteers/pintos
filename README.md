@@ -9,7 +9,9 @@ A variant of the Pintos Operating System for use as part of CNOS module.
 ## Contributors
 
 Nathaniel Steers (SN 10018627)
+
 Prithpal Sooriya (SN 15000167)
+
 James Harris (SN 15020556)
 
 #### We are the Dream Team!
