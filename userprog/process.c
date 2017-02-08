@@ -45,9 +45,6 @@ process_execute (const char *file_name)
   char *argarray[10];
   int argcount = 0;
 
-
-    printf("DEBUG ---- \n");
-
   for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
        token = strtok_r (NULL, " ", &save_ptr)){
 
@@ -66,6 +63,7 @@ process_execute (const char *file_name)
     printf("%s", argarray[i]);
   }
   printf("\n");
+
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
