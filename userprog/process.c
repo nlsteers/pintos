@@ -29,7 +29,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t process_execute (const char *file_name){
-    char *fn_copy, *fn_pname_copy, *save_ptr;
+    char *fn_copy, *save_ptr;
     tid_t tid;
 
   /* Make a copy of FILE_NAME.
@@ -40,13 +40,12 @@ tid_t process_execute (const char *file_name){
   }
 
     strlcpy (fn_copy, file_name, PGSIZE);
-    fn_pname_copy = palloc_get_page (0);
-    strlcpy (fn_pname_copy, file_name, PGSIZE);
 
-    char* pname = strtok_r (fn_pname_copy, " ", &save_ptr);
+
+    file_name = strtok_r (file_name, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (pname, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 
     //-------------------------------------------------------------------
   printf("Thread created\n");
@@ -234,8 +233,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
-    char *fn_pname_copy, *save_ptr;
-    char* args[10];
+
 
 
 
@@ -247,6 +245,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Open executable file. */
 
     // CHANGES --------------------------------------------
+
+    char *fn_pname_copy, *save_ptr;
+
     fn_pname_copy = palloc_get_page(0);
     strlcpy (fn_pname_copy, file_name, PGSIZE);
 
@@ -260,6 +261,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 	printf ("load: %s: open failed\n", file_name);
       goto done;
     }
+
+
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -335,15 +338,25 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done;
   }
 
+//----------ARGS PUSH
+    extract_program_args(file_name, esp);
+//-------------------
+
+
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
+
+    printf("EIP\n");
 
   success = true;
 
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
-  return success;
+
+    printf("DONE\n");
+
+    return success;
 }
 
 /* load() helpers. */
@@ -467,7 +480,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success) {
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
       } else
         palloc_free_page (kpage);
     }
@@ -499,34 +512,81 @@ install_page (void *upage, void *kpage, bool writable)
 
 
 
-/*
-void extract_program_args (const char *file_name, char **program_args[10]){
+void extract_program_args (const char *file_name, void **esp){
 
 
-    char **temp = &file_name;
+    printf("Here's our file name: %s \n", file_name);
 
-    printf("function start extract_program_args, file_name = %s\n", *temp);
     char *token, *save_ptr;
 //max 10 for now
-    char *argarray[10];
-    int argcount = 0;
-
-    token = strtok_r (file_name, " ", &save_ptr);
+    struct address argarray[10];
+    int argc = 0;
 
     for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
          token = strtok_r (NULL, " ", &save_ptr)){
 
-        printf ("'%s'\n", token);
-        argarray[argcount] = token;
-        argcount++;
-
-        if (argcount == 11){
+        if (argc == 11){
             printf("Too many arguments, 10 max\n");
             break;
         }
 
+        printf ("%s\n", token);
+        argarray[argc].argument = token;
+        argarray[argc].pointer = 0;
+        argc++;
+
     }
 
 
+    //ARG VALS
+    for (int i = argc; i != 0; i--){
+
+        int sizeOfArg = (sizeof(argarray[i-1].argument)+1);
+
+        *esp = *esp - sizeOfArg;
+
+        memcpy(*esp, argarray[i-1].argument, sizeOfArg);
+
+        argarray[i-1].pointer = *(char **)esp;
+
+    }
+
+    //ALIGNMENT
+    if ((size_t)*esp % 4 == 0){
+        *esp = *esp - 4;
+    } else {
+        *esp = *esp - (size_t)*esp % 4;
+    }
+    *(*(uint8_t **)esp) = 0;
+
+
+    //NULL POINTER
+    printf("3\n");
+
+    *esp = *esp - sizeof(char*);
+    **(char ***)esp = 0;
+
+
+    //ARG POINTERS
+    for (int x = argc; x != 0; x--){
+        int sizeOfArg = sizeof(char*);
+        *esp = *esp - sizeOfArg;
+
+        **(char ***)esp = argarray[x-1].pointer;
+    }
+
+    int argv = esp;
+    esp = esp - sizeof(argv);
+    *(char **)esp = argv;
+    printf("6\n");
+
+    esp = esp - sizeof(argc);
+    *(char **)esp = argc;
+    printf("7\n");
+
+    esp = esp - sizeof(int);
+
+    printf("7.1\n");
+
+    *(char **)esp = (void *)0;
 }
- */
