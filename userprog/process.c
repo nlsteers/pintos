@@ -46,6 +46,8 @@ process_execute (const char *file_name)
   int argcount = 0;
 
 
+    printf("DEBUG ---- \n");
+
   for (token = strtok_r (fn_copy, " ", &save_ptr); token != NULL;
        token = strtok_r (NULL, " ", &save_ptr)){
 
