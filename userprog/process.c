@@ -521,6 +521,8 @@ void extract_program_args (const char *file_name, void **esp){
 //max 10 for now
     struct address argarray[10];
     int argc = 0;
+    void* end =0;
+
 
     for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
          token = strtok_r (NULL, " ", &save_ptr)){
@@ -569,24 +571,26 @@ void extract_program_args (const char *file_name, void **esp){
 
     //ARG POINTERS
     for (int x = argc; x != 0; x--){
-        int sizeOfArg = sizeof(char*);
-        *esp = *esp - sizeOfArg;
+        *esp = *esp - sizeof(char*);
 
         **(char ***)esp = argarray[x-1].pointer;
     }
 
-    int argv = esp;
-    esp = esp - sizeof(argv);
-    *(char **)esp = argv;
+    char **argv = (*((char ***)esp));
+    *esp = *esp - sizeof(char**);
     printf("6\n");
 
-    esp = esp - sizeof(argc);
-    *(char **)esp = argc;
+    **(char ****)esp = argv;
     printf("7\n");
 
-    esp = esp - sizeof(int);
+    *esp = *esp - sizeof(int);
+    **(int **)esp = argc;
 
-    printf("7.1\n");
+    *esp = *esp - sizeof(void*);
 
-    *(char **)esp = (void *)0;
+    printf("8\n");
+
+
+    memcpy(*esp, &end, sizeof(void*));
+
 }
