@@ -91,6 +91,10 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     int exit_code;                      // Exit code ( added by us )
 
+    //mapping for file and int
+    struct file *file;
+    //int fd; //cheat for now by casting file as int
+
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
