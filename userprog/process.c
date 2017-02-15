@@ -48,7 +48,6 @@ tid_t process_execute (const char *file_name){
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 
     //-------------------------------------------------------------------
-  printf("Thread created\n");
 
   if (tid == TID_ERROR){
     palloc_free_page (fn_copy);
@@ -131,7 +130,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-    printf ("%s: exit(%d)\n", cur->name, cur->tid);
+    printf ("%s: exit(%d)\n", cur->name, cur->exit_code);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -346,7 +345,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
 
-    printf("EIP\n");
 
   success = true;
 
@@ -354,7 +352,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* We arrive here whether the load is successful or not. */
   file_close (file);
 
-    printf("DONE\n");
 
     return success;
 }
@@ -528,7 +525,7 @@ void extract_program_args (const char *file_name, void **esp){
             break;
         }
 
-        printf ("%s\n", token);
+        //printf ("%s\n", token);
         argarray[argc].argument = token;
         argarray[argc].pointer = 0;
         argc++;
@@ -543,37 +540,37 @@ void extract_program_args (const char *file_name, void **esp){
 
         //using memcpy because it ignores casting
         memcpy(*esp, argarray[i-1].argument, sizeOfArg);
-        printf("array: %s\n", argarray[i-1].argument);
+        //printf("array: %s\n", argarray[i-1].argument);
 
         argarray[i-1].pointer =*esp;
 
-        printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
+        //printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
     }
 
 
 
     /* Push ALIGNMENT BUFFER (up to 4 bytes) */
-    if ((uintptr_t)*esp % 4 == 0){
+    if ((uint8_t)*esp % 4 == 0){
         *esp = *esp - 4;
     } else {
-        *esp = *esp - ((uintptr_t)*esp % 4);
+        *esp = *esp - ((uint8_t)*esp % 4);
     }
 
     /*
     (uint8_t *)*esp --> right to left:
-    --> defreference to get pointer of esp = *esp
+    --> dereference to get pointer of esp = *esp
     --> cast to datatype = (uint8_t)*esp
     --> pointer to datatype to match being a pointer like esp= (uint8_t *)*esp --> both are pointers!
-    --> defreference again to set data --> *(uint8_t)*esp
+    --> dereference again to set data --> *(uint8_t)*esp
     */
     *(uint8_t *)*esp = (uint8_t)0;
-    printf("address: %p , data : %d\n", (*esp),  *(uint8_t *)*esp);
+    //printf("address: %p , data : %d\n", (*esp),  *(uint8_t *)*esp);
 
     /* Push NULL POINTER */
     *esp = *esp - sizeof(char*);
     char* nullPointer = 0;
     *(char **)*esp = nullPointer;
-    printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
+    //printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
 
 
     /* ARG POINTERS */
@@ -582,7 +579,7 @@ void extract_program_args (const char *file_name, void **esp){
 
         *(char **)*esp = argarray[x-1].pointer;
 
-          printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+          //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
     }
 
     /* ARGV*/
@@ -590,17 +587,17 @@ void extract_program_args (const char *file_name, void **esp){
 
     *esp = *esp - sizeof(char**);
     *(char ***)*esp = argv;
-    printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+    //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
 
     /* ARGC */
     *esp = *esp - sizeof(int);
     *(int *)*esp = argc;
-    printf("address: %p , data : %d\n", (*esp), *(int *)*esp);
+    //printf("address: %p , data : %d\n", (*esp), *(int *)*esp);
 
     /* RETURN ADDRESS */
     *esp = *esp - sizeof(void*);
     void *returnAddress = 0;
     memcpy(*esp, &returnAddress, sizeof(void*));
-    printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
+    //printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
 
 }
