@@ -3,6 +3,7 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/init.h"
 
 
 #define ARG_CODE 0
@@ -48,6 +49,9 @@ static void syscall_handler(struct intr_frame *f) {
             struct thread *cur = thread_current ();
             cur->exit_code = (int) load_stack(f, ARG_1);
             thread_exit();
+        }
+        case SYS_HALT:{
+            shutdown_power_off();
         }
         default:
             printf("SYS_CALL (%d) not implemented\n", code);
