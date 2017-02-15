@@ -86,7 +86,7 @@ static void syscall_handler(struct intr_frame *f) {
             } else {
                 fd = 1;
             }
-            cur->file = file;
+            cur->file = file
             f->eax = fd;
             break;
         }
@@ -97,7 +97,6 @@ static void syscall_handler(struct intr_frame *f) {
         case SYS_READ: {
             //printf("READ Incomplete");
             struct thread *cur = thread_current ();
-
             int result = handle_read(
                     (int) load_stack(f, ARG_1),
                     (void *) load_stack(f, ARG_2),
