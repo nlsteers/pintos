@@ -514,12 +514,16 @@ install_page (void *upage, void *kpage, bool writable)
 
 void extract_program_args (const char *file_name, void **esp){
 
+
+    printf("Here's our file name: %s \n", file_name);
+
     char *token, *save_ptr;
 //max 10 for now
     struct address argarray[10];
     int argc = 0;
+    void* end =0;
 
-    /* Tokenise the file_name */
+
     for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
          token = strtok_r (NULL, " ", &save_ptr)){
 
@@ -532,75 +536,61 @@ void extract_program_args (const char *file_name, void **esp){
         argarray[argc].argument = token;
         argarray[argc].pointer = 0;
         argc++;
+
     }
 
-    /* PUSH Argument/Tokens */
+
+    //ARG VALS
     for (int i = argc; i != 0; i--){
 
-        int sizeOfArg = (strlen(argarray[i-1].argument)+1);
+        int sizeOfArg = (sizeof(argarray[i-1].argument)+1);
 
         *esp = *esp - sizeOfArg;
 
-        //using memcpy because it ignores casting
         memcpy(*esp, argarray[i-1].argument, sizeOfArg);
-        printf("array: %s\n", argarray[i-1].argument);
 
-        argarray[i-1].pointer =*esp;
+        argarray[i-1].pointer = *(char **)esp;
 
-        printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
     }
 
-
-
-    /* Push ALIGNMENT BUFFER (up to 4 bytes) */
-    if ((uintptr_t)*esp % 4 == 0){
+    //ALIGNMENT
+    if ((size_t)*esp % 4 == 0){
         *esp = *esp - 4;
     } else {
-        *esp = *esp - ((uintptr_t)*esp % 4);
+        *esp = *esp - (size_t)*esp % 4;
     }
+    *(*(uint8_t **)esp) = 0;
 
-    /*
-    (uint8_t *)*esp --> right to left:
-    --> defreference to get pointer of esp = *esp
-    --> cast to datatype = (uint8_t)*esp
-    --> pointer to datatype to match being a pointer like esp= (uint8_t *)*esp --> both are pointers!
-    --> defreference again to set data --> *(uint8_t)*esp
-    */
-    *(uint8_t *)*esp = (uint8_t)0;
-    printf("address: %p , data : %d\n", (*esp),  *(uint8_t *)*esp);
 
-    /* Push NULL POINTER */
+    //NULL POINTER
+    printf("3\n");
+
     *esp = *esp - sizeof(char*);
-    char* nullPointer = 0;
-    *(char **)*esp = nullPointer;
-    printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
+    **(char ***)esp = 0;
 
 
-    /* ARG POINTERS */
+    //ARG POINTERS
     for (int x = argc; x != 0; x--){
         *esp = *esp - sizeof(char*);
 
-        *(char **)*esp = argarray[x-1].pointer;
-
-          printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+        **(char ***)esp = argarray[x-1].pointer;
     }
 
-    /* ARGV*/
-    char** argv = (char **)*esp;
-
+    char **argv = (*((char ***)esp));
     *esp = *esp - sizeof(char**);
-    *(char ***)*esp = argv;
-    printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+    printf("6\n");
 
-    /* ARGC */
+    **(char ****)esp = argv;
+    printf("7\n");
+
     *esp = *esp - sizeof(int);
-    *(int *)*esp = argc;
-    printf("address: %p , data : %d\n", (*esp), *(int *)*esp);
+    **(int **)esp = argc;
 
-    /* RETURN ADDRESS */
     *esp = *esp - sizeof(void*);
-    void *returnAddress = 0;
-    memcpy(*esp, &returnAddress, sizeof(void*));
-    printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
+
+    printf("8\n");
+
+
+    memcpy(*esp, &end, sizeof(void*));
 
 }
