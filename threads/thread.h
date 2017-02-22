@@ -80,6 +80,13 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+
+ struct file_info {
+   int fd;
+   struct file *fp;
+   struct list_elem fpelem;
+ };
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -89,7 +96,18 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-    int exit_code;                      // Exit code ( added by us )
+
+    //-------------------------------------------------------
+
+    int exit_code;                      // Exit code
+
+    struct process_info *parent_info;   /* Metadata for a process */
+    struct list *children;
+    struct list_elem *child_elem;
+
+    struct list files;
+
+    //-------------------------------------------------------
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -102,6 +120,13 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+  struct process_info
+    {
+      bool is_alive;			/* Whether process is alive */
+      int exit_status;			/* Record exit status */
+      int pid;				/* Record the pid */
+    };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
