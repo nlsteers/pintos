@@ -474,10 +474,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   //-------------------------
-
-  list_init(t->children);
-  list_init(t->children_elem);
-
+  //list_init(t->children);
+  list_init(&t->files);
   //-------------------------
 
   //t->is_kernel = is_kernel;

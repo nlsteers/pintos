@@ -544,7 +544,6 @@ void extract_program_args (const char *file_name, void **esp){
 
         //printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
     }
-
     /* Push ALIGNMENT BUFFER (up to 4 bytes) */
     if ((uint32_t)*esp % 4 == 0){
         *esp = *esp - 4;

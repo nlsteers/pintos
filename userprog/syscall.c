@@ -4,6 +4,13 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
+#include "filesys/off_t.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
+#include "threads/malloc.h"
+#include "devices/input.h"
+#include "devices/shutdown.h"
+#include "userprog/process.h"
 
 #define ARG_CODE 0
 #define ARG_1 4
@@ -11,6 +18,7 @@
 #define ARG_3 12
 
 static void syscall_handler(struct intr_frame *);
+static struct file_info* get_file (int fd);
 
 void syscall_init(void) {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
@@ -33,47 +41,101 @@ static int handle_write(int fd, const void *buffer, unsigned int length) {
     return length;
 }
 
+static void handle_exit (int exit_code){
+  struct thread *cur = thread_current ();
+  cur->exit_code = exit_code;
+  thread_exit();
+}
+
 //static int i = 3;
 static int handle_read(int fd, void *buffer, unsigned size) {
+  struct thread *cur = thread_current ();
+  //struct file* f = cur->files;
+  struct list_elem *e;
+  struct file_info *fi;
 
     if(fd == STDIN_FILENO) {
-        struct thread *cur = thread_current ();
-        struct file* f = cur->file;
-        //buffer = "abc";
-        putbuf((const char *) buffer, (size_t) size);
-
-        //return an integer for size of file left.
+        int i;
+        for(i = 0; i < (int)size; i++) {
+          *(uint8_t *)(buffer+i) = input_getc();
+        }
         return size;
     }
-    else {
-       printf("handle_read does not support fd input\n");
+    if(fd == STDOUT_FILENO) {
+      handle_exit(-1);
     }
+    fi = get_file(fd);
+    if (fi == NULL){
+      handle_exit(-1);
+    }
+    int bytes_read_fr = file_read(fi->fp, buffer, size);
+    return bytes_read_fr;
+
 
 }
+
+static struct file_info* get_file (int fd){
+
+  struct thread *cur = thread_current ();
+  //struct file* f = cur->files;
+  struct list_elem *e;
+  struct file_info *fi;
+
+
+
+  for(e = list_begin(&cur->files); e != list_end(&cur->files); e = list_next(e)){
+    fi = list_entry(e, struct file_info, fpelem);
+
+    if(fi->fd == fd) {
+      return fi;
+    }
+  }
+  return NULL;
+}
+//
+static int handle_open(char* file_name) {
+  struct file* file = filesys_open(file_name);
+  struct thread *cur = thread_current ();
+  int fd;
+  struct list_elem filepointer;
+
+  if (file == NULL){
+      fd = -1;
+      //exit_handler(fd);
+      return fd;
+  }
+
+  struct file_info *fi =   malloc(sizeof(struct file_info));
+  if(list_size(&cur->files) == 0) {
+    fd = 2; //only for init/first file --> will need to change when creating more files.
+    fi->fd = fd;
+    fi->fp = file;
+
+    list_push_back(&cur->files, &fi->fpelem);
+  }
+
+  return fd;
+}
+
 
 static void syscall_handler(struct intr_frame *f) {
     int code = (int) load_stack(f, ARG_CODE);
     switch (code) {
         case SYS_HALT:{
+            //DONE
             shutdown_power_off();
         }
         case SYS_EXIT: {
-            struct thread *cur = thread_current ();
-            //cur->exit_code = (int) load_stack(f, ARG_1); //probs do not need to load stack when exiting..
-            //if (cur->status != 0){
-              //cur->status = cur->exit_code; //maybe?
-              cur->exit_code = cur->status;
-              //printf ("%s: exit(%d)\n", cur->name, cur->exit_code);
-            //} else {
-            //}
-            thread_exit();
+          //DONE
+          handle_exit(load_stack(f, ARG_1));
+          break;
         }
         case SYS_EXEC: {
             printf("EXEC Incomplete\n");
             //get thread
             struct thread *cur = thread_current ();
             //process execute to make a child
-            process_execute();
+            //process_execute();
         }
         case SYS_WAIT: {
 
@@ -86,18 +148,11 @@ static void syscall_handler(struct intr_frame *f) {
         }
         case SYS_OPEN: {
             //DOESN'T WORK
-            struct thread *cur = thread_current ();
+
+            //NEW CODE -------------
             char *fileName = (char *)load_stack(f, ARG_1);
-            struct file* file = filesys_open(fileName);
-            printf("%s\n", (char*)file);
-            int fd;
-            if (file == NULL){
-                fd = -1;
-            } else {
-                fd = 1;
-            }
-            cur->file = file;
-            f->eax = fd;
+            f->eax = handle_open(fileName);
+            // ---------------------
             break;
         }
         case SYS_FILESIZE: {
@@ -112,7 +167,7 @@ static void syscall_handler(struct intr_frame *f) {
                     (unsigned) load_stack(f, ARG_3));
             //have to  do something....
             f->eax = result; //maybe
-            thread_exit();
+            break;
         }
         case SYS_WRITE: {
             int result = handle_write(
