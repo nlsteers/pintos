@@ -59,14 +59,24 @@ static void syscall_handler(struct intr_frame *f) {
         }
         case SYS_EXIT: {
             struct thread *cur = thread_current ();
-            cur->exit_code = (int) load_stack(f, ARG_1);
+            //cur->exit_code = (int) load_stack(f, ARG_1); //probs do not need to load stack when exiting..
+            //if (cur->status != 0){
+              //cur->status = cur->exit_code; //maybe?
+              cur->exit_code = cur->status;
+              //printf ("%s: exit(%d)\n", cur->name, cur->exit_code);
+            //} else {
+            //}
             thread_exit();
         }
         case SYS_EXEC: {
             printf("EXEC Incomplete\n");
+            //get thread
+            struct thread *cur = thread_current ();
+            //process execute to make a child
+            process_execute();
         }
         case SYS_WAIT: {
-            printf("WAIT Incomplete\n");
+
         }
         case SYS_CREATE: {
             printf("CREATE Incomplete\n");
@@ -75,7 +85,7 @@ static void syscall_handler(struct intr_frame *f) {
             printf("REMOVE Incomplete\n");
         }
         case SYS_OPEN: {
-//            printf("OPEN Incomplete");
+            //DOESN'T WORK
             struct thread *cur = thread_current ();
             char *fileName = (char *)load_stack(f, ARG_1);
             struct file* file = filesys_open(fileName);
@@ -86,13 +96,12 @@ static void syscall_handler(struct intr_frame *f) {
             } else {
                 fd = 1;
             }
-            cur->file = file
+            cur->file = file;
             f->eax = fd;
             break;
         }
         case SYS_FILESIZE: {
             printf("FILESIZE Incomplete\n");
-
         }
         case SYS_READ: {
             //printf("READ Incomplete");

@@ -15,4 +15,4 @@ else
     cd ././../userprog/
 fi
 make
-pintos run "cat notes.txt"
+pintos run "echo x y z"

@@ -22,15 +22,13 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t process_execute (const char *file_name){
-    char *fn_copy, *save_ptr;
-    tid_t tid;
+  char *fn_copy, *save_ptr;
+  tid_t tid;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -39,10 +37,8 @@ tid_t process_execute (const char *file_name){
       return TID_ERROR;
   }
 
-    strlcpy (fn_copy, file_name, PGSIZE);
-
-
-    file_name = strtok_r (file_name, " ", &save_ptr);
+  strlcpy (fn_copy, file_name, PGSIZE);
+  file_name = strtok_r (file_name, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -101,6 +97,8 @@ int
 process_wait (tid_t child_tid UNUSED)
 {
     // FIXME: @bgaster --- quick hack to make sure processes execute!
+    //struct thread *cur = thread_current ();
+
   for(;;) ;
 
   return -1;
@@ -547,13 +545,11 @@ void extract_program_args (const char *file_name, void **esp){
         //printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
     }
 
-
-
     /* Push ALIGNMENT BUFFER (up to 4 bytes) */
-    if ((uint8_t)*esp % 4 == 0){
+    if ((uint32_t)*esp % 4 == 0){
         *esp = *esp - 4;
     } else {
-        *esp = *esp - ((uint8_t)*esp % 4);
+        *esp = *esp - ((uint32_t)*esp % 4);
     }
 
     /*
@@ -569,7 +565,7 @@ void extract_program_args (const char *file_name, void **esp){
     /* Push NULL POINTER */
     *esp = *esp - sizeof(char*);
     char* nullPointer = 0;
-    *(char **)*esp = nullPointer;
+    *(char* *)*esp = nullPointer;
     //printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
 
 
@@ -577,7 +573,7 @@ void extract_program_args (const char *file_name, void **esp){
     for (int x = argc; x != 0; x--){
         *esp = *esp - sizeof(char*);
 
-        *(char **)*esp = argarray[x-1].pointer;
+        *(char* *)*esp = argarray[x-1].pointer;
 
           //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
     }
@@ -586,7 +582,7 @@ void extract_program_args (const char *file_name, void **esp){
     char** argv = (char **)*esp;
 
     *esp = *esp - sizeof(char**);
-    *(char ***)*esp = argv;
+    *(char** *)*esp = argv;
     //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
 
     /* ARGC */
