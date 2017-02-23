@@ -24,6 +24,16 @@ void syscall_init(void) {
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+static void handle_close(int fd) {
+  struct file_info *fi;
+  fi = get_file(fd);
+  if(fi != NULL) {
+    file_close(fi->fp);
+    list_remove(&fi->fpelem);
+    free(fi);
+  }
+}
+
 static uint32_t load_stack(struct intr_frame *f, int offset) {
 
     // need to add check for valid address
@@ -121,7 +131,8 @@ static int handle_open(char* file_name) {
 
 
 static void syscall_handler(struct intr_frame *f) {
-  //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c
+  //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c.
+  //NOTE: lib/user/syscall.c also includes return values (which inside here means storing into registers)
     int code = (int) load_stack(f, ARG_CODE);
     switch (code) {
         case SYS_HALT:{
@@ -196,13 +207,7 @@ static void syscall_handler(struct intr_frame *f) {
         }
         case SYS_CLOSE: {
             //printf("CLOSE\n"); //Debugging
-            struct file_info *fi;
-            fi = get_file((int)load_stack(f, ARG_1));
-            if(fi != NULL) {
-              file_close(fi->fp);
-              list_remove(&fi->fpelem);
-              free(fi);
-            }
+            handle_close((int)load_stack(f, ARG_1));
             break;
         }
         default:
