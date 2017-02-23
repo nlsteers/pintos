@@ -111,6 +111,22 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+//need to make sure that all files are removed before we close a process
+//Need to play around with the FOR loop:
+/*
+1) get first file_info
+2) get the file
+3) move onto next file_info
+4) deallocate file from number 2.s
+*/
+//list.h
+// for (e = list_begin (&foo_list); e != list_end (&foo_list);
+//      e = list_next (e))
+//   {
+//     struct foo *f = list_entry (e, struct foo, elem);
+//     ...do something with f...
+//   }
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

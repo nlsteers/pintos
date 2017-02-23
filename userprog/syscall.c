@@ -49,11 +49,13 @@ static void handle_exit (int exit_code){
 
 //static int i = 3;
 static int handle_read(int fd, void *buffer, unsigned size) {
-  struct thread *cur = thread_current ();
+  //struct thread *cur = thread_current (); --> unused
   //struct file* f = cur->files;
-  struct list_elem *e;
+  //struct list_elem *e; --> unused
+
   struct file_info *fi;
 
+    //Read the file (Standard In)
     if(fd == STDIN_FILENO) {
         int i;
         for(i = 0; i < (int)size; i++) {
@@ -61,17 +63,18 @@ static int handle_read(int fd, void *buffer, unsigned size) {
         }
         return size;
     }
+    //Check error if Standard Out
     if(fd == STDOUT_FILENO) {
-      handle_exit(-1);
+      handle_exit(-1); //maybe need to return?
     }
+    //Check if the file is NULL
     fi = get_file(fd);
     if (fi == NULL){
-      handle_exit(-1);
+      handle_exit(-1); //maybe need to return?
     }
+    //Read each bytes from file
     int bytes_read_fr = file_read(fi->fp, buffer, size);
     return bytes_read_fr;
-
-
 }
 
 static struct file_info* get_file (int fd){
@@ -80,8 +83,6 @@ static struct file_info* get_file (int fd){
   //struct file* f = cur->files;
   struct list_elem *e;
   struct file_info *fi;
-
-
 
   for(e = list_begin(&cur->files); e != list_end(&cur->files); e = list_next(e)){
     fi = list_entry(e, struct file_info, fpelem);
@@ -92,12 +93,12 @@ static struct file_info* get_file (int fd){
   }
   return NULL;
 }
-//
+
 static int handle_open(char* file_name) {
   struct file* file = filesys_open(file_name);
   struct thread *cur = thread_current ();
   int fd;
-  struct list_elem filepointer;
+  //struct list_elem filepointer; --> unused
 
   if (file == NULL){
       fd = -1;
@@ -105,25 +106,28 @@ static int handle_open(char* file_name) {
       return fd;
   }
 
-  struct file_info *fi =   malloc(sizeof(struct file_info));
-  if(list_size(&cur->files) == 0) {
-    fd = 2; //only for init/first file --> will need to change when creating more files.
+  struct file_info *fi =   malloc(sizeof(struct file_info)); //allocate size for file to open.
+
+  fd = 2; //only for init/first file --> will need to change when creating more files.
+  while(get_file(fd) != NULL) {
+    fd++;
+  }
     fi->fd = fd;
     fi->fp = file;
-
-    list_push_back(&cur->files, &fi->fpelem);
-  }
+    list_push_back(&cur->files, &fi->fpelem); //push the file onto the back of the linked list.
 
   return fd;
 }
 
 
 static void syscall_handler(struct intr_frame *f) {
+  //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c
     int code = (int) load_stack(f, ARG_CODE);
     switch (code) {
         case SYS_HALT:{
             //DONE
             shutdown_power_off();
+            break;
         }
         case SYS_EXIT: {
           //DONE
@@ -136,19 +140,22 @@ static void syscall_handler(struct intr_frame *f) {
             struct thread *cur = thread_current ();
             //process execute to make a child
             //process_execute();
+            break;
         }
         case SYS_WAIT: {
-
+          break;
         }
         case SYS_CREATE: {
             printf("CREATE Incomplete\n");
+            break;
         }
         case SYS_REMOVE: {
             printf("REMOVE Incomplete\n");
+            break;
         }
         case SYS_OPEN: {
-            //DOESN'T WORK
-
+          //printf("OPEN\n"); //debugging
+            //DOESN'T WORK=
             //NEW CODE -------------
             char *fileName = (char *)load_stack(f, ARG_1);
             f->eax = handle_open(fileName);
@@ -157,10 +164,12 @@ static void syscall_handler(struct intr_frame *f) {
         }
         case SYS_FILESIZE: {
             printf("FILESIZE Incomplete\n");
+            break;
         }
         case SYS_READ: {
+          //printf("READ\n"); //debugging
             //printf("READ Incomplete");
-            struct thread *cur = thread_current ();
+            //struct thread *cur = thread_current (); --> unused
             int result = handle_read(
                     (int) load_stack(f, ARG_1),
                     (void *) load_stack(f, ARG_2),
@@ -179,12 +188,22 @@ static void syscall_handler(struct intr_frame *f) {
         }
         case SYS_SEEK: {
             printf("SEEK Incomplete\n");
+            break;
         }
         case SYS_TELL: {
             printf("TELL Incomplete\n");
+            break;
         }
         case SYS_CLOSE: {
-            printf("CLOSE Incomplete\n");
+            //printf("CLOSE\n"); //Debugging
+            struct file_info *fi;
+            fi = get_file((int)load_stack(f, ARG_1));
+            if(fi != NULL) {
+              file_close(fi->fp);
+              list_remove(&fi->fpelem);
+              free(fi);
+            }
+            break;
         }
         default:
             printf("SYS_CALL (%d) not recognised\n", code);
