@@ -4,6 +4,7 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/init.h"
+#include "threads/synch.h"
 #include "filesys/off_t.h"
 #include "filesys/file.h"
 #include "filesys/filesys.h"
@@ -11,6 +12,7 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "userprog/process.h"
+
 
 #define ARG_CODE 0
 #define ARG_1 4
@@ -136,8 +138,12 @@ static int handle_filesize (int fd)
   return file_length (fi->fp);
 }
 
-static pid_t handle_exec (const char *file_name){
-
+static tid_t handle_exec (const char *file_name){
+  //struct semaphore *tl;
+  //sema_down(tl);
+  tid_t id = process_execute ((char *)file_name);
+  //sema_up(tl);
+  return id;
 }
 
 static void syscall_handler(struct intr_frame *f) {
@@ -146,75 +152,69 @@ static void syscall_handler(struct intr_frame *f) {
     int code = (int) load_stack(f, ARG_CODE);
     switch (code) {
         case SYS_HALT:{
-            //DONE
-            shutdown_power_off();
-            break;
+          shutdown_power_off();
+          break;
         }
         case SYS_EXIT: {
-          //DONE
           handle_exit(load_stack(f, ARG_1));
           break;
         }
         case SYS_EXEC: {
-            //printf("EXEC Incomplete\n");
-            f->eax = handle_exec((const char *)load_stack(f, ARG_1));
-            break;
+          f->eax = handle_exec((const char *)load_stack(f, ARG_1));
+          break;
         }
         case SYS_WAIT: {
           break;
         }
         case SYS_CREATE: {
-            printf("CREATE Incomplete\n");
-            break;
+          printf("CREATE Incomplete\n");
+          break;
         }
         case SYS_REMOVE: {
-            printf("REMOVE Incomplete\n");
-            break;
+          printf("REMOVE Incomplete\n");
+          break;
         }
         case SYS_OPEN: {
-            char *fileName = (char *)load_stack(f, ARG_1);
-            f->eax = handle_open(fileName);
-            break;
+          char *fileName = (char *)load_stack(f, ARG_1);
+          f->eax = handle_open(fileName);
+          break;
         }
         case SYS_FILESIZE: {
-            f->eax = handle_filesize((int) load_stack(f, ARG_1));
-            break;
+          f->eax = handle_filesize((int) load_stack(f, ARG_1));
+          break;
         }
         case SYS_READ: {
-          //printf("READ\n"); //debugging
-            //printf("READ Incomplete");
-            //struct thread *cur = thread_current (); --> unused
-            int result = handle_read(
-                    (int) load_stack(f, ARG_1),
-                    (void *) load_stack(f, ARG_2),
-                    (unsigned) load_stack(f, ARG_3));
-            //have to  do something....
-            f->eax = result; //maybe
-            break;
+          int result = handle_read(
+                  (int) load_stack(f, ARG_1),
+                  (void *) load_stack(f, ARG_2),
+                  (unsigned) load_stack(f, ARG_3));
+          f->eax = result;
+          break;
         }
         case SYS_WRITE: {
-            int result = handle_write(
-                    (int) load_stack(f, ARG_1),
-                    (void *) load_stack(f, ARG_2),
-                    (unsigned int) load_stack(f, ARG_3)); // set return value
-            f->eax = result;
-            break;
+          //needs debugging
+          int result = handle_write(
+                  (int) load_stack(f, ARG_1),
+                  (void *) load_stack(f, ARG_2),
+                  (unsigned int) load_stack(f, ARG_3)); // set return value
+          f->eax = result;
+          break;
         }
         case SYS_SEEK: {
-            printf("SEEK Incomplete\n");
-            break;
+          printf("SEEK Incomplete\n");
+          break;
         }
         case SYS_TELL: {
-            printf("TELL Incomplete\n");
-            break;
+          printf("TELL Incomplete\n");
+          break;
         }
         case SYS_CLOSE: {
-            //printf("CLOSE\n"); //Debugging
-            handle_close((int)load_stack(f, ARG_1));
-            break;
+          //printf("CLOSE\n"); //Debugging
+          handle_close((int)load_stack(f, ARG_1));
+          break;
         }
         default:
-            printf("SYS_CALL (%d) not recognised\n", code);
-            thread_exit();
+          printf("SYS_CALL (%d) not recognised\n", code);
+          thread_exit();
     }
 }
