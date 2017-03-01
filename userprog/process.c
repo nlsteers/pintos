@@ -15,8 +15,10 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 #include "lib/string.h"
 
 static thread_func start_process NO_RETURN;
@@ -26,30 +28,52 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-tid_t process_execute (const char *file_name){
-  char *fn_copy, *save_ptr;
-  tid_t tid;
+tid_t process_execute (const char *args){
+  char *args_copy, *save_ptr;
+  char *file_name;
+  tid_t child_id;
+  struct thread *parent_thread = thread_current();
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL){
-      return TID_ERROR;
+  args_copy = palloc_get_page (0);
+  if (args_copy == NULL){
+    return TID_ERROR;
   }
 
-  strlcpy (fn_copy, file_name, PGSIZE);
-  file_name = strtok_r (file_name, " ", &save_ptr);
+  strlcpy (args_copy, args, PGSIZE);
+
+
+  file_name = strtok_r (args, " ", &save_ptr);
+
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  child_id = thread_create (file_name, PRI_DEFAULT, start_process, args_copy);
 
-    //-------------------------------------------------------------------
-
-  if (tid == TID_ERROR){
-    palloc_free_page (fn_copy);
+  if (child_id == TID_ERROR){
+    palloc_free_page (args_copy);
     printf("TID Error\n");
+    return child_id;
   }
-  return tid;
+
+//BREAKING HERE
+  struct child_process *c = malloc(sizeof(struct child_process)); //allocate size for child
+
+  memset (c, 0, sizeof (struct child_process));
+
+  c->pid = child_id;
+  sema_init (&c->loading, 0);
+
+  list_push_back(&parent_thread->children, &c->c_elem);
+
+  sema_down(&c->loading);
+
+/*
+  if (c->load_status == LOAD_FAILED){
+    return -1;
+  }
+*/
+  return child_id;
 }
 
 /* A thread function that loads a user process and starts it
@@ -60,6 +84,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  struct thread *child_thread = thread_current();
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -69,10 +94,32 @@ start_process (void *file_name_)
 
   success = load (file_name, &if_.eip, &if_.esp);
 
+  struct thread *p = child_thread->parent_thread;
+
+  /*iteration on the parents child list
+  * set load status as successful if found
+  */
+  struct list_elem *e;
+
+
+  for (e = list_begin (&p->children); e != list_end (&p->children);
+       e = list_next (e))
+    {
+      struct child_process *cp = list_entry (e, struct child_process, c_elem);
+        if(cp->pid == child_thread->tid){
+          cp->load_status = success ? LOAD_SUCCESS:LOAD_FAILED;
+          sema_up(&cp->loading);
+        }
+    }
+
+
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success)
-    thread_exit ();
+  if (!success){
+    thread_exit();
+  }
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -259,10 +306,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
     // CHANGES --------------------------------------------
 
-    char *fn_pname_copy, *save_ptr;
-
-    fn_pname_copy = palloc_get_page(0);
-    strlcpy (fn_pname_copy, file_name, PGSIZE);
+    char *fn_pname_copy = (char *) file_name;
+    char *save_ptr;
 
     char* pname = strtok_r (fn_pname_copy, " ", &save_ptr);
 

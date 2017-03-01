@@ -45,11 +45,13 @@ static uint32_t load_stack(struct intr_frame *f, int offset) {
 }
 
 static int handle_write(int fd, const void *buffer, unsigned int length) {
+
     if (fd == STDOUT_FILENO) {
         putbuf((const char *) buffer, (size_t) length);
     } else {
         printf("handle_write does not support fd output\n");
     }
+
     return length;
 }
 
@@ -107,6 +109,7 @@ static struct file_info* get_file (int fd){
 }
 
 static int handle_open(char* file_name) {
+
   struct file* file = filesys_open(file_name);
   struct thread *cur = thread_current ();
   int fd;
@@ -118,7 +121,7 @@ static int handle_open(char* file_name) {
       return fd;
   }
 
-  struct file_info *fi =   malloc(sizeof(struct file_info)); //allocate size for file to open.
+  struct file_info *fi = malloc(sizeof(struct file_info)); //allocate size for file to open.
 
   fd = 2; //only for init/first file --> will need to change when creating more files.
   while(get_file(fd) != NULL) {
@@ -139,17 +142,14 @@ static int handle_filesize (int fd)
 }
 
 static tid_t handle_exec (const char *file_name){
-  //struct semaphore *tl;
-  //sema_down(tl);
-  tid_t id = process_execute ((char *)file_name);
-  //sema_up(tl);
-  return id;
+  return process_execute ((char *)file_name);;
 }
 
 static void syscall_handler(struct intr_frame *f) {
   //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c.
   //NOTE: lib/user/syscall.c also includes return values (which inside here means storing into registers)
     int code = (int) load_stack(f, ARG_CODE);
+
     switch (code) {
         case SYS_HALT:{
           shutdown_power_off();
@@ -164,6 +164,7 @@ static void syscall_handler(struct intr_frame *f) {
           break;
         }
         case SYS_WAIT: {
+          f->eax = process_wait((int) load_stack(f, ARG_1));
           break;
         }
         case SYS_CREATE: {
