@@ -129,6 +129,16 @@ static int handle_open(char* file_name) {
   return fd;
 }
 
+static int handle_filesize (int fd)
+{
+  struct file_info *fi = get_file (fd);
+  if( fi == NULL ) handle_exit(-1);
+  return file_length (fi->fp);
+}
+
+static pid_t handle_exec (const char *file_name){
+
+}
 
 static void syscall_handler(struct intr_frame *f) {
   //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c.
@@ -146,11 +156,8 @@ static void syscall_handler(struct intr_frame *f) {
           break;
         }
         case SYS_EXEC: {
-            printf("EXEC Incomplete\n");
-            //get thread
-            struct thread *cur = thread_current ();
-            //process execute to make a child
-            //process_execute();
+            //printf("EXEC Incomplete\n");
+            f->eax = handle_exec((const char *)load_stack(f, ARG_1));
             break;
         }
         case SYS_WAIT: {
@@ -165,16 +172,12 @@ static void syscall_handler(struct intr_frame *f) {
             break;
         }
         case SYS_OPEN: {
-          //printf("OPEN\n"); //debugging
-            //DOESN'T WORK=
-            //NEW CODE -------------
             char *fileName = (char *)load_stack(f, ARG_1);
             f->eax = handle_open(fileName);
-            // ---------------------
             break;
         }
         case SYS_FILESIZE: {
-            printf("FILESIZE Incomplete\n");
+            f->eax = handle_filesize((int) load_stack(f, ARG_1));
             break;
         }
         case SYS_READ: {
