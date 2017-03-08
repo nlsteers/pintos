@@ -56,8 +56,30 @@ static int handle_write(int fd, const void *buffer, unsigned int length) {
 }
 
 static void handle_exit (int exit_code){
-  struct thread *cur = thread_current ();
-  cur->exit_code = exit_code;
+  struct thread *child = thread_current();
+  struct thread *parent = child->parent_thread;
+  child->exit_code = exit_code;
+
+  //printf("parent: %d", parent);
+  //get current child
+  struct list_elem *e;
+  struct child_process *cp;
+
+  //get the child
+    for (e = list_begin (&parent->children); e != list_end (&parent->children);
+       e = list_next (e))
+    {
+      cp = list_entry (e, struct child_process, c_elem);
+        if(cp->pid == child->tid){
+          break;
+        }
+    }
+
+  if(cp->pid == child->tid) {
+    cp->return_code = exit_code;
+    sema_up(&cp->alive);
+  }
+
   thread_exit();
 }
 

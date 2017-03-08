@@ -58,14 +58,19 @@ tid_t process_execute (const char *args){
   struct child_process *c = malloc(sizeof(struct child_process)); //allocate size for child
   memset (c, 0, sizeof (struct child_process));
   c->pid = child_id;
+
   sema_init (&c->loading, 0);
+  sema_init (&c->alive, 0);
 
   list_push_back(&parent_thread->children, &c->c_elem);
 
   sema_down(&c->loading);
 
 
+
+
   if (c->load_status == LOAD_FAILED){
+    printf("Load Failed\n");
     return -1;
   }
 
@@ -140,32 +145,68 @@ int
 process_wait (tid_t child_tid)
 {
   //struct thread *cur = thread_current ();
-  for(;;) ;
+  //for(;;) ;
 //-----------------------------------------
-  struct thread *p = child_thread->parent_thread;
+
+  struct thread *p = thread_current();
   struct list_elem *e;
 
-  struct child_process *cp = list_entry (e, struct child_process, c_elem);
+  struct child_process *cp = NULL;
 
+  //get the child
     for (e = list_begin (&p->children); e != list_end (&p->children);
        e = list_next (e))
     {
+      cp = list_entry (e, struct child_process, c_elem);
         if(cp->pid == child_tid){
           break;
         }
     }
-    if(cp != null && cp->alive == null && cp->pid == child_tid){
-      return -1;
-    }
 
-    if(cp->load_status != null){
-      list_remove(&cp->c_elem);
-      return cp->load_status;
-    }
+    sema_down(&cp->alive);
+
+    // if(cp != NULL) {
+    //   printf("cp != null\n");
+    // }
+    // if(&cp->alive != (struct semaphore*)NULL) {
+    //   printf("cp->alive != null\n");
+    // }
+    // if(cp->pid == child_tid) {
+    //   printf("cp->pid == child_tid\n");
+    // }
+    //for(;;) {
 
 
 
-}
+      //if child is done, we can return
+      if(cp->load_status == LOAD_FAILED || cp->load_status == LOAD_SUCCESS){
+        if(cp->load_status == LOAD_FAILED) {
+          list_remove(&cp->c_elem);
+        }
+        //printf("child return\n");
+        //return 81;
+        return cp->return_code;
+      }
+
+      //check if we need to wait
+      if(cp != NULL && sema_try_down(&cp->alive) == 0 && cp->pid == child_tid){
+        //printf("waiting: %d\n", );
+        return -1;
+      }
+
+      //check if the child is not related to the parent
+      if(cp != NULL && cp->pid != child_tid) {
+        //printf("not a child\n");
+        return -1;
+      }
+
+      //check if the child is NOT dying --> aka still have to wait
+      //probs dont need this check (as we are checking child_process's load_status)
+      //this if statement uses some magic with semaphores
+
+    //}
+    return p->exit_code;
+  }
 
 /* Free the current process's resources. */
 void

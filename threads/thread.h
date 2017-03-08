@@ -98,6 +98,7 @@ enum load_status {
    struct semaphore loading;
    tid_t pid;
    struct list_elem c_elem;
+   int return_code;
    enum load_status load_status;
  };
 
