@@ -46,7 +46,6 @@ tid_t process_execute (const char *args){
 
   file_name = strtok_r (args, " ", &save_ptr);
 
-
   /* Create a new thread to execute FILE_NAME. */
   child_id = thread_create (file_name, PRI_DEFAULT, start_process, args_copy);
 
@@ -56,11 +55,8 @@ tid_t process_execute (const char *args){
     return child_id;
   }
 
-//BREAKING HERE
   struct child_process *c = malloc(sizeof(struct child_process)); //allocate size for child
-
   memset (c, 0, sizeof (struct child_process));
-
   c->pid = child_id;
   sema_init (&c->loading, 0);
 
@@ -68,11 +64,11 @@ tid_t process_execute (const char *args){
 
   sema_down(&c->loading);
 
-/*
+
   if (c->load_status == LOAD_FAILED){
     return -1;
   }
-*/
+
   return child_id;
 }
 
@@ -306,10 +302,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
     // CHANGES --------------------------------------------
 
-    char *fn_pname_copy = (char *) file_name;
+    char *fn_pname_copy = palloc_get_page (0);
+    strlcpy (fn_pname_copy, file_name, PGSIZE);
     char *save_ptr;
 
+
     char* pname = strtok_r (fn_pname_copy, " ", &save_ptr);
+
+
 
     file = filesys_open (pname);
     //-----------------------------------------------------
@@ -569,7 +569,6 @@ install_page (void *upage, void *kpage, bool writable)
 
 
 void extract_program_args (const char *file_name, void **esp){
-
     char *token, *save_ptr;
 //max 10 for now
     struct address argarray[10];
@@ -584,7 +583,7 @@ void extract_program_args (const char *file_name, void **esp){
             break;
         }
 
-        //printf ("%s\n", token);
+        // printf ("%s\n", token);
         argarray[argc].argument = token;
         argarray[argc].pointer = 0;
         argc++;
@@ -599,11 +598,11 @@ void extract_program_args (const char *file_name, void **esp){
 
         //using memcpy because it ignores casting
         memcpy(*esp, argarray[i-1].argument, sizeOfArg);
-        //printf("array: %s\n", argarray[i-1].argument);
+        // printf("array: %s\n", argarray[i-1].argument);
 
         argarray[i-1].pointer =*esp;
 
-        //printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
+        // printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
     }
     /* Push ALIGNMENT BUFFER (up to 4 bytes) */
     if ((uint32_t)*esp % 4 == 0){
@@ -620,13 +619,13 @@ void extract_program_args (const char *file_name, void **esp){
     --> dereference again to set data --> *(uint8_t)*esp
     */
     *(uint8_t *)*esp = (uint8_t)0;
-    //printf("address: %p , data : %d\n", (*esp),  *(uint8_t *)*esp);
+    // printf("address: %p , data : %d\n", (*esp),  *(uint8_t *)*esp);
 
     /* Push NULL POINTER */
     *esp = *esp - sizeof(char*);
     char* nullPointer = 0;
     *(char* *)*esp = nullPointer;
-    //printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
+    // printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
 
 
     /* ARG POINTERS */
@@ -635,7 +634,7 @@ void extract_program_args (const char *file_name, void **esp){
 
         *(char* *)*esp = argarray[x-1].pointer;
 
-          //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+          // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
     }
 
     /* ARGV*/
@@ -643,17 +642,16 @@ void extract_program_args (const char *file_name, void **esp){
 
     *esp = *esp - sizeof(char**);
     *(char** *)*esp = argv;
-    //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+    // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
 
     /* ARGC */
     *esp = *esp - sizeof(int);
     *(int *)*esp = argc;
-    //printf("address: %p , data : %d\n", (*esp), *(int *)*esp);
+    // printf("address: %p , data : %d\n", (*esp), *(int *)*esp);
 
     /* RETURN ADDRESS */
     *esp = *esp - sizeof(void*);
     void *returnAddress = 0;
     memcpy(*esp, &returnAddress, sizeof(void*));
-    //printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
-
+    // printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
 }

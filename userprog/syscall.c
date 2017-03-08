@@ -63,9 +63,6 @@ static void handle_exit (int exit_code){
 
 //static int i = 3;
 static int handle_read(int fd, void *buffer, unsigned size) {
-  //struct thread *cur = thread_current (); --> unused
-  //struct file* f = cur->files;
-  //struct list_elem *e; --> unused
 
   struct file_info *fi;
 
@@ -149,21 +146,24 @@ static void syscall_handler(struct intr_frame *f) {
   //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c.
   //NOTE: lib/user/syscall.c also includes return values (which inside here means storing into registers)
     int code = (int) load_stack(f, ARG_CODE);
-
     switch (code) {
         case SYS_HALT:{
+          // printf("Testing SYS_HALT\n");
           shutdown_power_off();
           break;
         }
         case SYS_EXIT: {
+          // printf("Testing SYS_EXIT\n");
           handle_exit(load_stack(f, ARG_1));
           break;
         }
         case SYS_EXEC: {
+          // printf("Testing SYS_EXEC\n");
           f->eax = handle_exec((const char *)load_stack(f, ARG_1));
           break;
         }
         case SYS_WAIT: {
+          // printf("Testing SYS_WAIT\n");
           f->eax = process_wait((int) load_stack(f, ARG_1));
           break;
         }
@@ -176,15 +176,18 @@ static void syscall_handler(struct intr_frame *f) {
           break;
         }
         case SYS_OPEN: {
+          // printf("Testing SYS_OPEN\n");
           char *fileName = (char *)load_stack(f, ARG_1);
           f->eax = handle_open(fileName);
           break;
         }
         case SYS_FILESIZE: {
+          // printf("Testing SYS_FILESIZE\n");
           f->eax = handle_filesize((int) load_stack(f, ARG_1));
           break;
         }
         case SYS_READ: {
+          // printf("Testing SYS_READ\n");
           int result = handle_read(
                   (int) load_stack(f, ARG_1),
                   (void *) load_stack(f, ARG_2),
@@ -194,6 +197,7 @@ static void syscall_handler(struct intr_frame *f) {
         }
         case SYS_WRITE: {
           //needs debugging
+          // printf("Testing SYS_WRITE\n");
           int result = handle_write(
                   (int) load_stack(f, ARG_1),
                   (void *) load_stack(f, ARG_2),
@@ -210,6 +214,7 @@ static void syscall_handler(struct intr_frame *f) {
           break;
         }
         case SYS_CLOSE: {
+          // printf("Testing SYS_CLOSE\n");
           //printf("CLOSE\n"); //Debugging
           handle_close((int)load_stack(f, ARG_1));
           break;
