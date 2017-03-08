@@ -137,14 +137,34 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED)
+process_wait (tid_t child_tid)
 {
-    // FIXME: @bgaster --- quick hack to make sure processes execute!
-    //struct thread *cur = thread_current ();
-
+  //struct thread *cur = thread_current ();
   for(;;) ;
+//-----------------------------------------
+  struct thread *p = child_thread->parent_thread;
+  struct list_elem *e;
 
-  return -1;
+  struct child_process *cp = list_entry (e, struct child_process, c_elem);
+
+    for (e = list_begin (&p->children); e != list_end (&p->children);
+       e = list_next (e))
+    {
+        if(cp->pid == child_tid){
+          break;
+        }
+    }
+    if(cp != null && cp->alive == null && cp->pid == child_tid){
+      return -1;
+    }
+
+    if(cp->load_status != null){
+      list_remove(&cp->c_elem);
+      return cp->load_status;
+    }
+
+
+
 }
 
 /* Free the current process's resources. */
