@@ -127,6 +127,14 @@ static struct file_info* get_file (int fd){
   return NULL;
 }
 
+static bool handle_create (const char *file_name, unsigned initial_size) {
+  return filesys_create(file_name, initial_size);
+}
+
+static bool handle_remove (const char *file_name) {
+  return filesys_remove(file_name);
+}
+
 static int handle_open(char* file_name) {
 
   struct file* file = filesys_open(file_name);
@@ -190,11 +198,18 @@ static void syscall_handler(struct intr_frame *f) {
           break;
         }
         case SYS_CREATE: {
-          printf("CREATE Incomplete\n");
+          // printf("Testing SYS_CREATE\n");
+          bool result = handle_create(
+                  (const char *)load_stack(f, ARG_1),
+                  (unsigned)load_stack(f, ARG_2));
+          f->eax = result;
           break;
         }
         case SYS_REMOVE: {
-          printf("REMOVE Incomplete\n");
+          // printf("REMOVE Incomplete\n");
+          bool result = handle_remove(
+                  (const char *)load_stack(f, ARG_1));
+          f->eax = result;
           break;
         }
         case SYS_OPEN: {
