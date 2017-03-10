@@ -159,6 +159,12 @@ process_wait (tid_t child_tid)
     {
       cp = list_entry (e, struct child_process, c_elem);
         if(cp->pid == child_tid){
+          //check if we are already waiting on this child
+          if(cp->waiting == true) {
+            return -1;
+          }
+          //we are not, so now we can set to true (showing we now are waiting for this child)
+          cp->waiting = true;
           break;
         }
     }
@@ -176,8 +182,6 @@ process_wait (tid_t child_tid)
     // }
     //for(;;) {
 
-
-
       //if child is done, we can return
       if(cp->load_status == LOAD_FAILED || cp->load_status == LOAD_SUCCESS){
         if(cp->load_status == LOAD_FAILED) {
@@ -190,7 +194,6 @@ process_wait (tid_t child_tid)
 
       //check if we need to wait
       if(cp != NULL && sema_try_down(&cp->alive) == 0 && cp->pid == child_tid){
-        //printf("waiting: %d\n", );
         return -1;
       }
 

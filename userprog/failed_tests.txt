@@ -1,4 +1,4 @@
-FAIL tests/userprog/args-many (DONE)
+FAIL tests/userprog/args-many (PASSED)
 FAIL tests/userprog/sc-bad-sp
 FAIL tests/userprog/sc-bad-arg
 FAIL tests/userprog/create-null
@@ -12,7 +12,7 @@ FAIL tests/userprog/write-bad-fd
 FAIL tests/userprog/exec-arg
 FAIL tests/userprog/exec-missing
 FAIL tests/userprog/exec-bad-ptr
-FAIL tests/userprog/wait-twice
+FAIL tests/userprog/wait-twice (PASSED)
 FAIL tests/userprog/wait-killed
 FAIL tests/userprog/wait-bad-pid
 FAIL tests/userprog/rox-simple
