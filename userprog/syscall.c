@@ -49,7 +49,7 @@ static int handle_write(int fd, const void *buffer, unsigned int length) {
     if (fd == STDOUT_FILENO) {
         putbuf((const char *) buffer, (size_t) length);
     } else {
-        printf("handle_write does not support fd output\n");
+        printf("handle_write does not support fd output\n"); //hmmm we may need to change this in the future.....
     }
 
     return length;
@@ -108,6 +108,28 @@ static int handle_read(int fd, void *buffer, unsigned size) {
     //Read each bytes from file
     int bytes_read_fr = file_read(fi->fp, buffer, size);
     return bytes_read_fr;
+}
+
+static void handle_seek(int fd, unsigned position) {
+  /*
+  we have a file descriptor and position
+  - So we will need to get the corresponding file (from our file info struct)
+  - Pass the file into filesys/file.h function
+    - void file_seek (struct file *, off_t);
+  */
+  struct file_info *fi = get_file(fd);
+  file_seek(fi->fp, position);
+}
+
+static off_t handle_tell(int fd) {
+  /*
+  we have a file descriptor
+  - So we will need to get the corresponding file (from our file info struct)
+  - Pass the file into filesys/file.h function
+    - off_t file_tell (struct file *);
+  */
+  struct file_info *fi = get_file(fd);
+  return file_tell (fi->fp); //maybe might get an issue... we are returning off_t, but we expect unsigned
 }
 
 static struct file_info* get_file (int fd){
@@ -243,11 +265,18 @@ static void syscall_handler(struct intr_frame *f) {
           break;
         }
         case SYS_SEEK: {
-          printf("SEEK Incomplete\n");
+          //printf("Testing SYS_SEEK\n");
+          handle_seek(
+                  (int) load_stack(f, ARG_1),
+                  (unsigned) load_stack(f, ARG_2));
           break;
         }
         case SYS_TELL: {
-          printf("TELL Incomplete\n");
+          //printf("Testing SYS_TELL\n");
+          unsigned result = handle_tell(
+                  (int) load_stack(f, ARG_1)
+          );
+          f->eax = result;
           break;
         }
         case SYS_CLOSE: {
