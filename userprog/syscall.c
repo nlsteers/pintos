@@ -46,13 +46,26 @@ static uint32_t load_stack(struct intr_frame *f, int offset) {
 
 static int handle_write(int fd, const void *buffer, unsigned int length) {
 
-    if (fd == STDOUT_FILENO) {
-        putbuf((const char *) buffer, (size_t) length);
-    } else {
-        printf("handle_write does not support fd output\n"); //hmmm we may need to change this in the future.....
-    }
+//removing this code, since we no have a better understanding!
+    // if (fd == STDOUT_FILENO) {
+    //     putbuf((const char *) buffer, (size_t) length);
+    // } else {
+    //     printf("handle_write does not support fd output\n"); //hmmm we may need to change this in the future.....
+    // }
 
-    return length;
+    //Fd 1 writes to the console
+    if(fd == 1) {
+      //at least as long as size is not bigger than a few hundred bytes
+      //(It is reasonable to break up larger buffers.)
+      //if(sizeof (buffer) < 1000)
+      putbuf((const char *)buffer, (size_t) length);
+      return length;
+    }
+    else {
+      struct file_info *fi = get_file(fd);
+      return file_write (fi->fp, buffer, length); //Returns the number of bytes actually written,
+    }
+    // return length;
 }
 
 static void handle_exit (int exit_code){
