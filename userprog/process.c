@@ -632,14 +632,14 @@ install_page (void *upage, void *kpage, bool writable)
 void extract_program_args (const char *file_name, void **esp){
     char *token, *save_ptr;
 //max 10 for now
-    struct address argarray[10];
+    struct address argarray[30]; //NOTE: changed this to 30 max, because tests/userprog/args-many requires 23 arguments
     int argc = 0;
 
     /* Tokenise the file_name */
     for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
          token = strtok_r (NULL, " ", &save_ptr)){
 
-        if (argc == 11){
+        if (argc == 31){ //NOTE: changed this aswell to pass args-many
             printf("Too many arguments, 10 max\n");
             break;
         }

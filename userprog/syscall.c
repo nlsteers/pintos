@@ -52,7 +52,7 @@ static int handle_write(int fd, const void *buffer, unsigned int length) {
     // } else {
     //     printf("handle_write does not support fd output\n"); //hmmm we may need to change this in the future.....
     // }
-
+ 
     //Fd 1 writes to the console
     if(fd == 1) {
       //at least as long as size is not bigger than a few hundred bytes
