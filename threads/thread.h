@@ -100,6 +100,7 @@ enum load_status {
    struct list_elem c_elem;
    int return_code;
    enum load_status load_status;
+   bool waiting;
  };
 
 

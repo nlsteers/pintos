@@ -159,6 +159,12 @@ process_wait (tid_t child_tid)
     {
       cp = list_entry (e, struct child_process, c_elem);
         if(cp->pid == child_tid){
+          //check if we are already waiting on this child
+          if(cp->waiting == true) {
+            return -1;
+          }
+          //we are not, so now we can set to true (showing we now are waiting for this child)
+          cp->waiting = true;
           break;
         }
     }
@@ -176,8 +182,6 @@ process_wait (tid_t child_tid)
     // }
     //for(;;) {
 
-
-
       //if child is done, we can return
       if(cp->load_status == LOAD_FAILED || cp->load_status == LOAD_SUCCESS){
         if(cp->load_status == LOAD_FAILED) {
@@ -190,7 +194,6 @@ process_wait (tid_t child_tid)
 
       //check if we need to wait
       if(cp != NULL && sema_try_down(&cp->alive) == 0 && cp->pid == child_tid){
-        //printf("waiting: %d\n", );
         return -1;
       }
 
@@ -632,14 +635,14 @@ install_page (void *upage, void *kpage, bool writable)
 void extract_program_args (const char *file_name, void **esp){
     char *token, *save_ptr;
 //max 10 for now
-    struct address argarray[10];
+    struct address argarray[30]; //NOTE: changed this to 30 max, because tests/userprog/args-many requires 23 arguments
     int argc = 0;
 
     /* Tokenise the file_name */
     for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
          token = strtok_r (NULL, " ", &save_ptr)){
 
-        if (argc == 11){
+        if (argc == 31){ //NOTE: changed this aswell to pass args-many
             printf("Too many arguments, 10 max\n");
             break;
         }
