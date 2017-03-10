@@ -7,6 +7,7 @@ pintos -f -q
 pintos -p ../../examples/cat -a cat -- -q
 pintos -p ../../examples/echo -a echo -- -q
 pintos -p ../notes.txt -a notes.txt -- -q
+pintos -p ../../examples/rm -a rm -- -q #to test SYS_REMOVE
 cd ..
 make
-pintos run "cat notes.txt"
+pintos run "rm notes.txt"

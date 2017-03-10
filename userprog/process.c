@@ -15,8 +15,10 @@
 #include "threads/init.h"
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 #include "lib/string.h"
 
 static thread_func start_process NO_RETURN;
@@ -26,30 +28,53 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
-tid_t process_execute (const char *file_name){
-  char *fn_copy, *save_ptr;
-  tid_t tid;
+tid_t process_execute (const char *args){
+  char *args_copy, *save_ptr;
+  char *file_name;
+  tid_t child_id;
+  struct thread *parent_thread = thread_current();
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL){
-      return TID_ERROR;
+  args_copy = palloc_get_page (0);
+  if (args_copy == NULL){
+    return TID_ERROR;
   }
 
-  strlcpy (fn_copy, file_name, PGSIZE);
-  file_name = strtok_r (file_name, " ", &save_ptr);
+  strlcpy (args_copy, args, PGSIZE);
+
+
+  file_name = strtok_r (args, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  child_id = thread_create (file_name, PRI_DEFAULT, start_process, args_copy);
 
-    //-------------------------------------------------------------------
-
-  if (tid == TID_ERROR){
-    palloc_free_page (fn_copy);
+  if (child_id == TID_ERROR){
+    palloc_free_page (args_copy);
     printf("TID Error\n");
+    return child_id;
   }
-  return tid;
+
+  struct child_process *c = malloc(sizeof(struct child_process)); //allocate size for child
+  memset (c, 0, sizeof (struct child_process));
+  c->pid = child_id;
+
+  sema_init (&c->loading, 0);
+  sema_init (&c->alive, 0);
+
+  list_push_back(&parent_thread->children, &c->c_elem);
+
+  sema_down(&c->loading);
+
+
+
+
+  if (c->load_status == LOAD_FAILED){
+    printf("Load Failed\n");
+    return -1;
+  }
+
+  return child_id;
 }
 
 /* A thread function that loads a user process and starts it
@@ -60,6 +85,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  struct thread *child_thread = thread_current();
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -69,10 +95,32 @@ start_process (void *file_name_)
 
   success = load (file_name, &if_.eip, &if_.esp);
 
+  struct thread *p = child_thread->parent_thread;
+
+  /*iteration on the parents child list
+  * set load status as successful if found
+  */
+  struct list_elem *e;
+
+
+  for (e = list_begin (&p->children); e != list_end (&p->children);
+       e = list_next (e))
+    {
+      struct child_process *cp = list_entry (e, struct child_process, c_elem);
+        if(cp->pid == child_thread->tid){
+          cp->load_status = success ? LOAD_SUCCESS:LOAD_FAILED;
+          sema_up(&cp->loading);
+        }
+    }
+
+
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success)
-    thread_exit ();
+  if (!success){
+    thread_exit();
+  }
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -94,15 +142,74 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED)
+process_wait (tid_t child_tid)
 {
-    // FIXME: @bgaster --- quick hack to make sure processes execute!
-    //struct thread *cur = thread_current ();
+  //struct thread *cur = thread_current ();
+  //for(;;) ;
+//-----------------------------------------
 
-  for(;;) ;
+  struct thread *p = thread_current();
+  struct list_elem *e;
 
-  return -1;
-}
+  struct child_process *cp = NULL;
+
+  //get the child
+    for (e = list_begin (&p->children); e != list_end (&p->children);
+       e = list_next (e))
+    {
+      cp = list_entry (e, struct child_process, c_elem);
+        if(cp->pid == child_tid){
+          //check if we are already waiting on this child
+          if(cp->waiting == true) {
+            return -1;
+          }
+          //we are not, so now we can set to true (showing we now are waiting for this child)
+          cp->waiting = true;
+          break;
+        }
+    }
+
+    sema_down(&cp->alive);
+
+    // if(cp != NULL) {
+    //   printf("cp != null\n");
+    // }
+    // if(&cp->alive != (struct semaphore*)NULL) {
+    //   printf("cp->alive != null\n");
+    // }
+    // if(cp->pid == child_tid) {
+    //   printf("cp->pid == child_tid\n");
+    // }
+    //for(;;) {
+
+      //if child is done, we can return
+      if(cp->load_status == LOAD_FAILED || cp->load_status == LOAD_SUCCESS){
+        if(cp->load_status == LOAD_FAILED) {
+          list_remove(&cp->c_elem);
+        }
+        //printf("child return\n");
+        //return 81;
+        return cp->return_code;
+      }
+
+      //check if we need to wait
+      if(cp != NULL && sema_try_down(&cp->alive) == 0 && cp->pid == child_tid){
+        return -1;
+      }
+
+      //check if the child is not related to the parent
+      if(cp != NULL && cp->pid != child_tid) {
+        //printf("not a child\n");
+        return -1;
+      }
+
+      //check if the child is NOT dying --> aka still have to wait
+      //probs dont need this check (as we are checking child_process's load_status)
+      //this if statement uses some magic with semaphores
+
+    //}
+    return p->exit_code;
+  }
 
 /* Free the current process's resources. */
 void
@@ -110,6 +217,22 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+//need to make sure that all files are removed before we close a process
+//Need to play around with the FOR loop:
+/*
+1) get first file_info
+2) get the file
+3) move onto next file_info
+4) deallocate file from number 2.s
+*/
+//list.h
+// for (e = list_begin (&foo_list); e != list_end (&foo_list);
+//      e = list_next (e))
+//   {
+//     struct foo *f = list_entry (e, struct foo, elem);
+//     ...do something with f...
+//   }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -243,12 +366,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
     // CHANGES --------------------------------------------
 
-    char *fn_pname_copy, *save_ptr;
-
-    fn_pname_copy = palloc_get_page(0);
+    char *fn_pname_copy = palloc_get_page (0);
     strlcpy (fn_pname_copy, file_name, PGSIZE);
+    char *save_ptr;
+
 
     char* pname = strtok_r (fn_pname_copy, " ", &save_ptr);
+
+
 
     file = filesys_open (pname);
     //-----------------------------------------------------
@@ -508,22 +633,21 @@ install_page (void *upage, void *kpage, bool writable)
 
 
 void extract_program_args (const char *file_name, void **esp){
-
     char *token, *save_ptr;
 //max 10 for now
-    struct address argarray[10];
+    struct address argarray[30]; //NOTE: changed this to 30 max, because tests/userprog/args-many requires 23 arguments
     int argc = 0;
 
     /* Tokenise the file_name */
     for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
          token = strtok_r (NULL, " ", &save_ptr)){
 
-        if (argc == 11){
+        if (argc == 31){ //NOTE: changed this aswell to pass args-many
             printf("Too many arguments, 10 max\n");
             break;
         }
 
-        //printf ("%s\n", token);
+        // printf ("%s\n", token);
         argarray[argc].argument = token;
         argarray[argc].pointer = 0;
         argc++;
@@ -538,11 +662,11 @@ void extract_program_args (const char *file_name, void **esp){
 
         //using memcpy because it ignores casting
         memcpy(*esp, argarray[i-1].argument, sizeOfArg);
-        //printf("array: %s\n", argarray[i-1].argument);
+        // printf("array: %s\n", argarray[i-1].argument);
 
         argarray[i-1].pointer =*esp;
 
-        //printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
+        // printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
     }
     /* Push ALIGNMENT BUFFER (up to 4 bytes) */
     if ((uint32_t)*esp % 4 == 0){
@@ -559,13 +683,13 @@ void extract_program_args (const char *file_name, void **esp){
     --> dereference again to set data --> *(uint8_t)*esp
     */
     *(uint8_t *)*esp = (uint8_t)0;
-    //printf("address: %p , data : %d\n", (*esp),  *(uint8_t *)*esp);
+    // printf("address: %p , data : %d\n", (*esp),  *(uint8_t *)*esp);
 
     /* Push NULL POINTER */
     *esp = *esp - sizeof(char*);
     char* nullPointer = 0;
     *(char* *)*esp = nullPointer;
-    //printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
+    // printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
 
 
     /* ARG POINTERS */
@@ -574,7 +698,7 @@ void extract_program_args (const char *file_name, void **esp){
 
         *(char* *)*esp = argarray[x-1].pointer;
 
-          //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+          // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
     }
 
     /* ARGV*/
@@ -582,17 +706,16 @@ void extract_program_args (const char *file_name, void **esp){
 
     *esp = *esp - sizeof(char**);
     *(char** *)*esp = argv;
-    //printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+    // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
 
     /* ARGC */
     *esp = *esp - sizeof(int);
     *(int *)*esp = argc;
-    //printf("address: %p , data : %d\n", (*esp), *(int *)*esp);
+    // printf("address: %p , data : %d\n", (*esp), *(int *)*esp);
 
     /* RETURN ADDRESS */
     *esp = *esp - sizeof(void*);
     void *returnAddress = 0;
     memcpy(*esp, &returnAddress, sizeof(void*));
-    //printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
-
+    // printf("address: %p , data : %p\n", (*esp), *(char**)*esp);
 }

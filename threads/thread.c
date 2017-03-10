@@ -187,6 +187,8 @@ thread_create (const char *name, int priority,
   if (t == NULL)
     return TID_ERROR;
 
+
+
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
@@ -207,6 +209,8 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   /* Add to run queue. */
+  t->parent_thread = thread_current();
+
   thread_unblock (t);
 
   return tid;
@@ -472,13 +476,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  t->parent_thread = 0;
 
   //-------------------------
-  //list_init(t->children);
   list_init(&t->files);
+  list_init(&t->children);
   //-------------------------
-
-  //t->is_kernel = is_kernel;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
