@@ -12,6 +12,8 @@
 #include "devices/input.h"
 #include "devices/shutdown.h"
 #include "userprog/process.h"
+#include "threads/vaddr.h"
+
 
 
 #define ARG_CODE 0
@@ -40,6 +42,13 @@ static uint32_t load_stack(struct intr_frame *f, int offset) {
 
     // need to add check for valid address
     // i.e. user can do bad things
+
+    // if (f->esp < PHYS_BASE){
+    //   printf("VALID\n");
+    // } else {
+    //   printf("INVALID\n");
+    // }
+
     return *((uint32_t*)(f->esp + offset));
 
 }
@@ -175,11 +184,9 @@ static int handle_open(char* file_name) {
   struct file* file = filesys_open(file_name);
   struct thread *cur = thread_current ();
   int fd;
-  //struct list_elem filepointer; --> unused
 
   if (file == NULL){
       fd = -1;
-      //exit_handler(fd);
       return fd;
   }
 

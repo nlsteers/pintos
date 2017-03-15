@@ -125,7 +125,6 @@ struct thread
 
     struct thread *parent_thread;
 
-
     struct list files;
 
     //-------------------------------------------------------
