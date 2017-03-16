@@ -1,25 +1,9 @@
 #include "userprog/syscall.h"
-#include <stdio.h>
-#include <syscall-nr.h>
-#include "threads/interrupt.h"
-#include "threads/thread.h"
-#include "threads/init.h"
-#include "threads/synch.h"
-#include "filesys/off_t.h"
-#include "filesys/file.h"
-#include "filesys/filesys.h"
-#include "threads/malloc.h"
-#include "devices/input.h"
-#include "devices/shutdown.h"
-#include "userprog/process.h"
-#include "threads/vaddr.h"
 
 
 
-#define ARG_CODE 0
-#define ARG_1 4
-#define ARG_2 8
-#define ARG_3 12
+
+
 
 static void syscall_handler(struct intr_frame *);
 static struct file_info* get_file (int fd);
@@ -72,22 +56,30 @@ static int handle_write(int fd, const void *buffer, unsigned int length) {
     }
     else {
       struct file_info *fi = get_file(fd);
-      return file_write (fi->fp, buffer, length); //Returns the number of bytes actually written,
+      if(fi != NULL) {
+        return file_write (fi->fp, buffer, length); //Returns the number of bytes actually written,
+      }
+      else {
+        return 0;
+      }
     }
     // return length;
 }
 
 static void handle_exit (int exit_code){
   struct thread *child = thread_current();
+  //might break here if parent = null (e.g. kernel thread)
+  //so best to add a check if we should go into if statement or not
   struct thread *parent = child->parent_thread;
   child->exit_code = exit_code;
 
   //printf("parent: %d", parent);
   //get current child
   struct list_elem *e;
-  struct child_process *cp;
+  struct child_process *cp = NULL;
 
   //get the child
+  if(parent != NULL) {
     for (e = list_begin (&parent->children); e != list_end (&parent->children);
        e = list_next (e))
     {
@@ -97,9 +89,10 @@ static void handle_exit (int exit_code){
         }
     }
 
-  if(cp->pid == child->tid) {
-    cp->return_code = exit_code;
-    sema_up(&cp->alive);
+    if(cp->pid == child->tid && cp != NULL) {
+      cp->return_code = exit_code;
+      sema_up(&cp->alive);
+    }
   }
 
   thread_exit();
@@ -127,9 +120,12 @@ static int handle_read(int fd, void *buffer, unsigned size) {
     if (fi == NULL){
       handle_exit(-1); //maybe need to return?
     }
-    //Read each bytes from file
-    int bytes_read_fr = file_read(fi->fp, buffer, size);
-    return bytes_read_fr;
+    //added else statement
+    //else {
+      //Read each bytes from file
+      int bytes_read_fr = file_read(fi->fp, buffer, size);
+      return bytes_read_fr;
+    //}
 }
 
 static void handle_seek(int fd, unsigned position) {
@@ -139,8 +135,16 @@ static void handle_seek(int fd, unsigned position) {
   - Pass the file into filesys/file.h function
     - void file_seek (struct file *, off_t);
   */
-  struct file_info *fi = get_file(fd);
-  file_seek(fi->fp, position);
+  //consider a check later
+  // if(fd >= 2) {
+    struct file_info *fi = get_file(fd);
+    if(fi != NULL) {
+      file_seek(fi->fp, position);
+    }
+  // }
+  // else{
+  //   return -1;
+  // }
 }
 
 static off_t handle_tell(int fd) {
@@ -151,7 +155,12 @@ static off_t handle_tell(int fd) {
     - off_t file_tell (struct file *);
   */
   struct file_info *fi = get_file(fd);
-  return file_tell (fi->fp); //maybe might get an issue... we are returning off_t, but we expect unsigned
+  if(fi != NULL) {
+    return file_tell (fi->fp); //maybe might get an issue... we are returning off_t, but we expect unsigned
+  }
+  else {
+    return 0;
+  }
 }
 
 static struct file_info* get_file (int fd){
