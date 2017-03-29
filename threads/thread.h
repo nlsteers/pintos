@@ -82,29 +82,85 @@ typedef int tid_t;
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
 
+ /***************************************************
+  * Struct section:
+ ***************************************************/
+
+ /**************************************************
+  * @name enum load_status
+  * @enum LOAD_SUCCESS: when loading was sucessfull
+  * @enum LOAD_FAILED: when loading failed
+ **************************************************/
 enum load_status {
   LOAD_SUCCESS,
   LOAD_FAILED
 };
 
- struct file_info {
-   int fd;
-   struct file *fp;
-   struct list_elem fpelem;
- };
+/**************************************************
+ * @name struct file_info
+ * @description : used inside the thread struct, to indicate the list of file
+ *    file information
+ * @attribute int fd: the file descriptor for the file
+ * @attribute struct file *fp: a pointer to the file (suitably named fp = file pointer)
+ * @attribute struct list_elem fpelem: the element of the list.
+ *    used for referencing the list of files inside struct thread
+**************************************************/
+struct file_info {
+ int fd;
+ struct file *fp;
+ struct list_elem fpelem;
+};
 
- struct child_process {
-   struct semaphore alive;
-   struct semaphore loading;
-   tid_t pid;
-   struct list_elem c_elem;
-   int return_code;
-   enum load_status load_status;
-   bool waiting;
- };
+/**************************************************
+ * @name struct child_process
+ * @description : used inside the thread struct, to indicate the list of children
+ *    information
+ * @attribute struct semaphore alive: a semaphore for syncronisation when a thread is alive
+ * @attribute struct semaphore loading: a semaphore for syncronisation when a thread is loading
+ * @attribute tid_t pid: the child threads process id
+ * @attribute struct list_elem c_elem: the element of the list.
+ *    used for referencing the list of children inside struct thread
+ * @attribute int return_code: The return code of the chlid
+ * @attribute enum load_status load_status: using the enum above to show if success or failed
+ * @attribute bool waiting: used to prevent waiting on the same child twice.
+ *    set to true when inside /userprog/process.c process_wait function when
+ *    child is retrieved.
+**************************************************/
+struct child_process {
+ struct semaphore alive;
+ struct semaphore loading;
+ tid_t pid;
+ struct list_elem c_elem;
+ int return_code;
+ enum load_status load_status;
+ bool waiting;
+};
 
+/**************************************************
+ * @name struct process_info
+ * @description : used inside the thread struct, to indicate the parents infomation
+ * @attribute bool is_alive: check if the current thread is alive.
+ * @attribute int exit_status: hold the exit_status of the current thread
+ * @attribute int pid: holds the current thread pid
+**************************************************/
+struct process_info {
+  bool is_alive;			/* Whether process is alive */
+  int exit_status;			/* Record exit status */
+  int pid;				/* Record the pid */
+};
 
-
+/**************************************************
+ * @name struct thread (our code that we used)
+ * @description : the thread which is used throughout Pintos - our additions have been made
+ * @attribute int exit_code: the exit code for the thread
+ * @attribute struct process_info *parent_info: process information that contains this threads
+ *    parent information
+ * @attribute struct list children: a list of children threads. Can access the individual
+ *    children using the list.h functions (which retrieves the struct child_process)
+ * @attribute struct thread *parent_thread: a thread containing the parent thread.
+ * @attribute struct list files: a list of files. Can access the individual files
+ *    using the list.h functions (which retrieves the struct file_info).
+**************************************************/
 struct thread
   {
     /* Owned by thread.c. */
@@ -118,14 +174,9 @@ struct thread
     //-------------------------------------------------------
 
     int exit_code;                      // Exit code
-
     struct process_info *parent_info;   /* Metadata for a process */
-
     struct list children;
-
     struct thread *parent_thread;
-
-
     struct list files;
 
     //-------------------------------------------------------
@@ -142,12 +193,7 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-  struct process_info
-    {
-      bool is_alive;			/* Whether process is alive */
-      int exit_status;			/* Record exit status */
-      int pid;				/* Record the pid */
-    };
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
