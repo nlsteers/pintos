@@ -1,25 +1,4 @@
 #include "userprog/process.h"
-#include <debug.h>
-#include <inttypes.h>
-#include <round.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "userprog/gdt.h"
-#include "userprog/pagedir.h"
-#include "userprog/tss.h"
-#include "filesys/directory.h"
-#include "filesys/file.h"
-#include "filesys/filesys.h"
-#include "threads/flags.h"
-#include "threads/init.h"
-#include "threads/interrupt.h"
-#include "threads/palloc.h"
-#include "threads/malloc.h"
-#include "threads/thread.h"
-#include "threads/vaddr.h"
-#include "threads/synch.h"
-#include "lib/string.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -41,9 +20,11 @@ tid_t process_execute (const char *args){
     return TID_ERROR;
   }
 
+  /*
+  tokenize to get the filename/program name
+  E.g. "echo x y" --> program name = "echo"
+  */
   strlcpy (args_copy, args, PGSIZE);
-
-
   file_name = strtok_r (args, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
@@ -59,15 +40,14 @@ tid_t process_execute (const char *args){
   memset (c, 0, sizeof (struct child_process));
   c->pid = child_id;
 
+  //init semaphores
   sema_init (&c->loading, 0);
   sema_init (&c->alive, 0);
 
   list_push_back(&parent_thread->children, &c->c_elem);
 
+  //loading is finished
   sema_down(&c->loading);
-
-
-
 
   if (c->load_status == LOAD_FAILED){
     printf("Load Failed\n");
@@ -367,14 +347,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
     // CHANGES --------------------------------------------
 
     char *fn_pname_copy = palloc_get_page (0);
+
     strlcpy (fn_pname_copy, file_name, PGSIZE);
     char *save_ptr;
-
-
     char* pname = strtok_r (fn_pname_copy, " ", &save_ptr);
-
-
-
     file = filesys_open (pname);
     //-----------------------------------------------------
 
@@ -667,6 +643,7 @@ void extract_program_args (const char *file_name, void **esp){
 
         // printf("address: %p , data : %s\n", (*esp),  (char*)*esp);
     }
+
     /* Push ALIGNMENT BUFFER (up to 4 bytes) */
     if ((uint32_t)*esp % 4 == 0){
         *esp = *esp - 4;
@@ -697,12 +674,11 @@ void extract_program_args (const char *file_name, void **esp){
 
         *(char* *)*esp = argarray[x-1].pointer;
 
-          // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
+        // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
     }
 
     /* ARGV */
     char** argv = (char **)*esp;
-
     *esp = *esp - sizeof(char**);
     *(char** *)*esp = argv;
     // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);

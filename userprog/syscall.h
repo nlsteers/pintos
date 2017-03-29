@@ -1,7 +1,7 @@
 /***************************************************
  * Module name: syscall.h
  *
- * First written on 16/3/2017 by Prithpal Sooriya.
+ * First written on 16/3/2017
  *
  * Module Description:
  * This contains all the prototypes and definitions for
@@ -217,7 +217,7 @@ static tid_t handle_exec(const char *file_name);
  * @return int : returns the child's status if the child successfully is ended.
  *    Returns -1 if there is an error (described more below).
  * @param int child_tid: is the childs process ID to be used to indicate what child
- *    the parent thread is waiting for.
+ *    the parent thread is waiting fget_fileor.
  * @date 10/3/2017
  * @details This returns the child thread's status if successfully waited, but also
  *    returns -1 if there is an error.
@@ -239,6 +239,6 @@ static int handle_wait(int child_tid);
  *    by the given corresponding file descriptor. It will return NULL if a file could not be found.
  * @note This was added later in the code to allow our code to be more clean and understandable.
 **************************************************/
-static struct file_info* get_file (int fd)
+static struct file_info* get_file (int fd);
 
 #endif /* userprog/syscall.h */

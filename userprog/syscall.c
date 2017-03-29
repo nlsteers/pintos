@@ -1,10 +1,5 @@
 #include "userprog/syscall.h"
 
-
-
-
-
-
 static void syscall_handler(struct intr_frame *);
 static struct file_info* get_file (int fd);
 
@@ -39,12 +34,6 @@ static uint32_t load_stack(struct intr_frame *f, int offset) {
 
 static int handle_write(int fd, const void *buffer, unsigned int length) {
 
-//removing this code, since we no have a better understanding!
-    // if (fd == STDOUT_FILENO) {
-    //     putbuf((const char *) buffer, (size_t) length);
-    // } else {
-    //     printf("handle_write does not support fd output\n"); //hmmm we may need to change this in the future.....
-    // }
 
     //Fd 1 writes to the console
     if(fd == 1) {
@@ -63,7 +52,6 @@ static int handle_write(int fd, const void *buffer, unsigned int length) {
         return 0;
       }
     }
-    // return length;
 }
 
 static void handle_exit (int exit_code){
@@ -113,19 +101,16 @@ static int handle_read(int fd, void *buffer, unsigned size) {
     }
     //Check error if Standard Out
     if(fd == STDOUT_FILENO) {
-      handle_exit(-1); //maybe need to return?
+      handle_exit(-1);
     }
     //Check if the file is NULL
     fi = get_file(fd);
     if (fi == NULL){
-      handle_exit(-1); //maybe need to return?
+      handle_exit(-1);
     }
-    //added else statement
-    //else {
-      //Read each bytes from file
-      int bytes_read_fr = file_read(fi->fp, buffer, size);
-      return bytes_read_fr;
-    //}
+    //Read each bytes from file
+    int bytes_read_fr = file_read(fi->fp, buffer, size);
+    return bytes_read_fr;
 }
 
 static void handle_seek(int fd, unsigned position) {
@@ -136,15 +121,10 @@ static void handle_seek(int fd, unsigned position) {
     - void file_seek (struct file *, off_t);
   */
   //consider a check later
-  // if(fd >= 2) {
-    struct file_info *fi = get_file(fd);
-    if(fi != NULL) {
-      file_seek(fi->fp, position);
-    }
-  // }
-  // else{
-  //   return -1;
-  // }
+  struct file_info *fi = get_file(fd);
+  if(fi != NULL) {
+    file_seek(fi->fp, position);
+  }
 }
 
 static off_t handle_tell(int fd) {
@@ -156,7 +136,7 @@ static off_t handle_tell(int fd) {
   */
   struct file_info *fi = get_file(fd);
   if(fi != NULL) {
-    return file_tell (fi->fp); //maybe might get an issue... we are returning off_t, but we expect unsigned
+    return file_tell (fi->fp);
   }
   else {
     return 0;
@@ -166,7 +146,6 @@ static off_t handle_tell(int fd) {
 static struct file_info* get_file (int fd){
 
   struct thread *cur = thread_current ();
-  //struct file* f = cur->files;
   struct list_elem *e;
   struct file_info *fi;
 
@@ -177,6 +156,7 @@ static struct file_info* get_file (int fd){
       return fi;
     }
   }
+
   return NULL;
 }
 
@@ -201,13 +181,14 @@ static int handle_open(char* file_name) {
 
   struct file_info *fi = malloc(sizeof(struct file_info)); //allocate size for file to open.
 
-  fd = 2; //only for init/first file --> will need to change when creating more files.
+  fd = 2; //0 and 1 are reserved for STDIN_FILENO and STDOUT_FILENO
   while(get_file(fd) != NULL) {
     fd++;
   }
-    fi->fd = fd;
-    fi->fp = file;
-    list_push_back(&cur->files, &fi->fpelem); //push the file onto the back of the linked list.
+  //store onto the threads list of files
+  fi->fd = fd;
+  fi->fp = file;
+  list_push_back(&cur->files, &fi->fpelem);
 
   return fd;
 }
@@ -232,98 +213,96 @@ static void handle_halt() {
 }
 
 static void syscall_handler(struct intr_frame *f) {
-  //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c.
-  //NOTE: lib/user/syscall.c also includes return values (which inside here means storing into registers)
-    int code = (int) load_stack(f, ARG_CODE);
-    switch (code) {
-        case SYS_HALT:{
-          // printf("Testing SYS_HALT\n");
-          handle_halt();
-          break;
-        }
-        case SYS_EXIT: {
-          // printf("Testing SYS_EXIT\n");
-          handle_exit(load_stack(f, ARG_1));
-          break;
-        }
-        case SYS_EXEC: {
-          // printf("Testing SYS_EXEC\n");
-          f->eax = handle_exec((const char *)load_stack(f, ARG_1));
-          break;
-        }
-        case SYS_WAIT: {
-          // printf("Testing SYS_WAIT\n");
-          f->eax = handle_wait((int) load_stack(f, ARG_1));
-          break;
-        }
-        case SYS_CREATE: {
-          // printf("Testing SYS_CREATE\n");
-          bool result = handle_create(
-                  (const char *)load_stack(f, ARG_1),
-                  (unsigned)load_stack(f, ARG_2));
-          f->eax = result;
-          break;
-        }
-        case SYS_REMOVE: {
-          // printf("REMOVE Incomplete\n");
-          bool result = handle_remove(
-                  (const char *)load_stack(f, ARG_1));
-          f->eax = result;
-          break;
-        }
-        case SYS_OPEN: {
-          // printf("Testing SYS_OPEN\n");
-          char *fileName = (char *)load_stack(f, ARG_1);
-          f->eax = handle_open(fileName);
-          break;
-        }
-        case SYS_FILESIZE: {
-          // printf("Testing SYS_FILESIZE\n");
-          f->eax = handle_filesize((int) load_stack(f, ARG_1));
-          break;
-        }
-        case SYS_READ: {
-          // printf("Testing SYS_READ\n");
-          int result = handle_read(
-                  (int) load_stack(f, ARG_1),
-                  (void *) load_stack(f, ARG_2),
-                  (unsigned) load_stack(f, ARG_3));
-          f->eax = result;
-          break;
-        }
-        case SYS_WRITE: {
-          //needs debugging
-          // printf("Testing SYS_WRITE\n");
-          int result = handle_write(
-                  (int) load_stack(f, ARG_1),
-                  (void *) load_stack(f, ARG_2),
-                  (unsigned int) load_stack(f, ARG_3)); // set return value
-          f->eax = result;
-          break;
-        }
-        case SYS_SEEK: {
-          //printf("Testing SYS_SEEK\n");
-          handle_seek(
-                  (int) load_stack(f, ARG_1),
-                  (unsigned) load_stack(f, ARG_2));
-          break;
-        }
-        case SYS_TELL: {
-          //printf("Testing SYS_TELL\n");
-          unsigned result = handle_tell(
-                  (int) load_stack(f, ARG_1)
-          );
-          f->eax = result;
-          break;
-        }
-        case SYS_CLOSE: {
-          // printf("Testing SYS_CLOSE\n");
-          //printf("CLOSE\n"); //Debugging
-          handle_close((int)load_stack(f, ARG_1));
-          break;
-        }
-        default:
-          printf("SYS_CALL (%d) not recognised\n", code);
-          thread_exit();
+  int code = (int) load_stack(f, ARG_CODE);
+  switch (code) {
+    case SYS_HALT:{
+      // printf("Testing SYS_HALT\n");
+      handle_halt();
+      break;
+    }
+    case SYS_EXIT: {
+      // printf("Testing SYS_EXIT\n");
+      handle_exit(load_stack(f, ARG_1));
+      break;
+    }
+    case SYS_EXEC: {
+      // printf("Testing SYS_EXEC\n");
+      f->eax = handle_exec((const char *)load_stack(f, ARG_1));
+      break;
+    }
+    case SYS_WAIT: {
+      // printf("Testing SYS_WAIT\n");
+      f->eax = handle_wait((int) load_stack(f, ARG_1));
+      break;
+    }
+    case SYS_CREATE: {
+      // printf("Testing SYS_CREATE\n");
+      bool result = handle_create(
+              (const char *)load_stack(f, ARG_1),
+              (unsigned)load_stack(f, ARG_2));
+      f->eax = result;
+      break;
+    }
+    case SYS_REMOVE: {
+      // printf("REMOVE Incomplete\n");
+      bool result = handle_remove(
+              (const char *)load_stack(f, ARG_1));
+      f->eax = result;
+      break;
+    }
+    case SYS_OPEN: {
+      // printf("Testing SYS_OPEN\n");
+      char *fileName = (char *)load_stack(f, ARG_1);
+      f->eax = handle_open(fileName);
+      break;
+    }
+    case SYS_FILESIZE: {
+      // printf("Testing SYS_FILESIZE\n");
+      f->eax = handle_filesize((int) load_stack(f, ARG_1));
+      break;
+    }
+    case SYS_READ: {
+      // printf("Testing SYS_READ\n");
+      int result = handle_read(
+              (int) load_stack(f, ARG_1),
+              (void *) load_stack(f, ARG_2),
+              (unsigned) load_stack(f, ARG_3));
+      f->eax = result;
+      break;
+    }
+    case SYS_WRITE: {
+      //needs debugging
+      // printf("Testing SYS_WRITE\n");
+      int result = handle_write(
+              (int) load_stack(f, ARG_1),
+              (void *) load_stack(f, ARG_2),
+              (unsigned int) load_stack(f, ARG_3)); // set return value
+      f->eax = result;
+      break;
+    }
+    case SYS_SEEK: {
+      //printf("Testing SYS_SEEK\n");
+      handle_seek(
+              (int) load_stack(f, ARG_1),
+              (unsigned) load_stack(f, ARG_2));
+      break;
+    }
+    case SYS_TELL: {
+      //printf("Testing SYS_TELL\n");
+      unsigned result = handle_tell(
+              (int) load_stack(f, ARG_1)
+      );
+      f->eax = result;
+      break;
+    }
+    case SYS_CLOSE: {
+      // printf("Testing SYS_CLOSE\n");
+      //printf("CLOSE\n"); //Debugging
+      handle_close((int)load_stack(f, ARG_1));
+      break;
+    }
+    default:
+      printf("SYS_CALL (%d) not recognised\n", code);
+      thread_exit();
     }
 }
