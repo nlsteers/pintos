@@ -223,6 +223,14 @@ static tid_t handle_exec (const char *file_name){
   return process_execute ((char *)file_name);;
 }
 
+static int handle_wait(int child_tid){
+  return process_wait(child_tid);
+}
+
+static void handle_halt() {
+  shutdown_power_off();
+}
+
 static void syscall_handler(struct intr_frame *f) {
   //NOTE: If you want to know what the params are for these syscalls, look into lib/user/syscall.c.
   //NOTE: lib/user/syscall.c also includes return values (which inside here means storing into registers)
@@ -230,7 +238,7 @@ static void syscall_handler(struct intr_frame *f) {
     switch (code) {
         case SYS_HALT:{
           // printf("Testing SYS_HALT\n");
-          shutdown_power_off();
+          handle_halt();
           break;
         }
         case SYS_EXIT: {
@@ -245,7 +253,7 @@ static void syscall_handler(struct intr_frame *f) {
         }
         case SYS_WAIT: {
           // printf("Testing SYS_WAIT\n");
-          f->eax = process_wait((int) load_stack(f, ARG_1));
+          f->eax = handle_wait((int) load_stack(f, ARG_1));
           break;
         }
         case SYS_CREATE: {

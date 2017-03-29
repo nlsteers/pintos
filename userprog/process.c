@@ -634,7 +634,6 @@ install_page (void *upage, void *kpage, bool writable)
 
 void extract_program_args (const char *file_name, void **esp){
     char *token, *save_ptr;
-//max 10 for now
     struct address argarray[30]; //NOTE: changed this to 30 max, because tests/userprog/args-many requires 23 arguments
     int argc = 0;
 
@@ -643,7 +642,7 @@ void extract_program_args (const char *file_name, void **esp){
          token = strtok_r (NULL, " ", &save_ptr)){
 
         if (argc == 31){ //NOTE: changed this aswell to pass args-many
-            printf("Too many arguments, 10 max\n");
+            printf("Too many arguments, 30 max\n");
             break;
         }
 
@@ -701,7 +700,7 @@ void extract_program_args (const char *file_name, void **esp){
           // printf("address: %p , data : %p\n", (*esp), *(char **)*esp);
     }
 
-    /* ARGV*/
+    /* ARGV */
     char** argv = (char **)*esp;
 
     *esp = *esp - sizeof(char**);
