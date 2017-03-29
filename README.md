@@ -6,6 +6,10 @@ Submission for teaching block 2 CNOS coursework
 
 A variant of the Pintos Operating System for use as part of CNOS module.
 
+## Documentation
+
+View the [wiki](https://gitlab.uwe.ac.uk/nl2-steers/Pintos/wikis/home) for more information
+
 ## Contributors
 
 Nathaniel Steers (SN 10018627)
